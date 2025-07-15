@@ -262,7 +262,7 @@ export const Dashboard = () => {
   // It will forcibly close all modals when clicked
   return (
     <>
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 mt-6 top-1">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 pt-safe">
         {/* Main Panel: Recent Expenses, Budget Overview (Quick Add Expense Widget removed) */}
         <div className="xl:col-span-2 space-y-6">
           {/* Quick Add Expense Widget removed. FAB now shows on all screens. */}
@@ -272,7 +272,7 @@ export const Dashboard = () => {
           <div className="h-2 sm:h-0 w-full" />
           {/* Month Selector, Search, Filter, Export - single line */}
           {/* Mobile: compact filter row */}
-          <div className="flex flex-row items-center gap-4 mt-12 mb-2 px-4 w-full justify-center sm:hidden mx-auto">
+          <div className="flex flex-row items-center gap-4 mb-2 px-4 w-full justify-center sm:hidden mx-auto">
             <div className="flex-1 min-w-0 max-w-[110px]">
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                 <SelectTrigger className="h-9 px-2 text-xs">{selectedMonth}</SelectTrigger>

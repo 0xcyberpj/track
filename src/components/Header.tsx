@@ -92,7 +92,7 @@ export const Header = () => {
       {/* Mobile nav bar at the very top, more compact */}
       <Sheet>
         <nav
-          className="md:hidden fixed top-1 left-1 right-1 flex justify-around items-center py-2 bg-background/80 z-50 rounded-b-xl backdrop-blur supports-[backdrop-filter]:backdrop-blur mb-3"
+          className="md:hidden fixed bottom-0 left-0 right-0 flex justify-around items-center py-2 pb-safe pb-4 bg-background/80 z-50 rounded-t-xl backdrop-blur supports-[backdrop-filter]:backdrop-blur gap-x-2"
           style={{ pointerEvents: 'auto', height: '56px' }}
         >
           <div className="px-2 py-2.5">

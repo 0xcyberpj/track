@@ -247,7 +247,7 @@ const Accounts = () => {
       {/* Add space below header on mobile */}
       <div className="block sm:hidden mb-4" />
       <FloatingAddExpenseButton />
-      <div className="container mx-auto px-3 py-4 space-y-6 max-w-7xl mt-20 sm:mt-0">
+      <div className="container mx-auto px-3 py-4 space-y-6 max-w-7xl pt-safe sm:mt-0">
         {/* Header */}
         <div className="flex top-20 flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>

@@ -5,7 +5,7 @@ const Index = () => {
   return (
     <>
       <Header />
-      <div className="container mx-auto px-3 py-4 max-w-7xl">
+      <div className="container mx-auto px-3 pt-safe max-w-7xl">
         <Dashboard />
       </div>
     </>
