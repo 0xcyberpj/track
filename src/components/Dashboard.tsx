@@ -21,6 +21,7 @@ export const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { accounts, expenses, categories, budgets, loading, createBudget, updateBudget, addExpense, updateExpense, deleteExpense } = useFinanceData();
+  const [balanceVisible, setBalanceVisible] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
 
@@ -161,11 +162,16 @@ export const Dashboard = () => {
     setExpenseModalOpen(false);
   };
 
-  // Calculate total balance across all accounts
-  const totalBalance = accounts.reduce((sum, account) => sum + account.balance, 0);
-  
-  // Calculate total expenses
-  const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+  // Calculate current month expenses (monthly reset logic)
+  const currentDate = new Date();
+  const currentMonthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+  const currentMonthExpenses = expenses.filter(expense => 
+    new Date(expense.date) >= currentMonthStart
+  );
+  const totalExpenses = currentMonthExpenses.reduce((sum, expense) => sum + (typeof expense.amount === 'number' ? expense.amount : parseFloat(expense.amount)), 0);
+  // Only include accounts that are set to show in dashboard
+  const dashboardAccounts = accounts.filter(account => account.include_in_dashboard !== false);
+  const totalBalance = dashboardAccounts.reduce((sum, account) => sum + (typeof account.balance === 'number' ? account.balance : parseFloat(account.balance)), 0);
 
   // Filter recent expenses (last 5)
   const recentExpenses = expenses
@@ -526,11 +532,22 @@ export const Dashboard = () => {
                 <div className="text-3xl font-bold text-primary mb-1">₹{formatAmount(totalExpenses)}</div>
                 <div className="text-sm text-muted-foreground">All time</div>
               </div>
-              <div className="bg-secondary/30 p-6 rounded-lg border border-border/30">
-                <div className="text-sm text-muted-foreground mb-2">TOTAL BALANCE</div>
-                <div className="text-3xl font-bold text-success mb-1">₹{formatAmount(totalBalance)}</div>
-                <div className="text-sm text-muted-foreground">{accounts.length} account{accounts.length !== 1 ? 's' : ''}</div>
-              </div>
+                <div className="bg-secondary/30 p-6 rounded-lg border border-border/30">
+                  <div className="text-sm text-muted-foreground mb-2">TOTAL BALANCE</div>
+                  <button 
+                    onClick={() => setBalanceVisible(!balanceVisible)}
+                    className="text-3xl font-bold text-success mb-1 hover:text-success/80 transition-colors"
+                  >
+                    {balanceVisible ? (
+                      <>₹{formatAmount(totalBalance)}</>
+                    ) : (
+                      <span className="tracking-wider">₹•••••••</span>
+                    )}
+                  </button>
+                  <div className="text-sm text-muted-foreground">
+                    {dashboardAccounts.length} account{dashboardAccounts.length !== 1 ? 's' : ''} • Click to {balanceVisible ? 'hide' : 'show'}
+                  </div>
+                </div>
               <div className="bg-secondary/30 p-6 rounded-lg border border-border/30">
                 <div className="text-sm text-muted-foreground mb-2">BY CATEGORY</div>
                 {expenses.length === 0 ? (
@@ -584,41 +601,90 @@ export const Dashboard = () => {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {budgets.map(budget => {
-                      // Calculate spent/remaining for this budget's category and month
-                      const budgetStart = new Date(budget.start_date);
-                      const budgetEnd = new Date(budget.end_date);
-                      const expensesForBudget = expenses.filter(e =>
-                        e.category_id === budget.category_id &&
-                        new Date(e.date) >= budgetStart &&
-                        new Date(e.date) <= budgetEnd
-                      );
-                      const spent = expensesForBudget.reduce((sum, e) => sum + e.amount, 0);
-                      const remaining = budget.amount - spent;
-                      const percent = budget.amount > 0 ? spent / budget.amount : 0;
-                      let barColor = 'bg-green-500';
-                      if (percent >= 0.9) barColor = 'bg-red-500';
-                      else if (percent >= 0.7) barColor = 'bg-orange-400';
-                      return (
-                        <div key={budget.id} className="p-3 border border-border/50 rounded-lg bg-background/80">
-                          <div className="flex items-center justify-between mb-1">
-                            <div className="font-semibold text-foreground">{categories.find(c => c.id === budget.category_id)?.name || budget.name}</div>
-                            <Button size="sm" variant="outline" onClick={() => openEditBudget(budget)}>Edit</Button>
+                    {budgets
+                      .filter(budget => {
+                        // Only show active budgets or budgets that should auto-renew
+                        const currentDate = new Date();
+                        const budgetEnd = new Date(budget.end_date);
+                        const budgetStart = new Date(budget.start_date);
+                        
+                        // If budget is monthly and has ended, check if we should show current month version
+                        if (budget.period === 'monthly' && budgetEnd < currentDate) {
+                          // For monthly budgets, show if it's within a reasonable timeframe (last 3 months)
+                          const monthsDiff = (currentDate.getFullYear() - budgetEnd.getFullYear()) * 12 + 
+                                           (currentDate.getMonth() - budgetEnd.getMonth());
+                          return monthsDiff <= 3; // Show recently ended monthly budgets
+                        }
+                        
+                        // Show active budgets
+                        return budgetEnd >= currentDate || budgetStart <= currentDate;
+                      })
+                      .map(budget => {
+                        const currentDate = new Date();
+                        const budgetEnd = new Date(budget.end_date);
+                        
+                        // For monthly budgets that have ended, calculate for current month
+                        let effectiveBudgetStart, effectiveBudgetEnd;
+                        
+                        if (budget.period === 'monthly' && budgetEnd < currentDate) {
+                          // Calculate current month period for expired monthly budgets
+                          effectiveBudgetStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+                          effectiveBudgetEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+                        } else {
+                          // Use original budget dates for active budgets
+                          effectiveBudgetStart = new Date(budget.start_date);
+                          effectiveBudgetEnd = new Date(budget.end_date);
+                        }
+                        
+                        // Calculate spent/remaining for this budget's category and effective period
+                        const expensesForBudget = expenses.filter(e =>
+                          e.category_id === budget.category_id &&
+                          new Date(e.date) >= effectiveBudgetStart &&
+                          new Date(e.date) <= effectiveBudgetEnd
+                        );
+                        
+                        const spent = expensesForBudget.reduce((sum, e) => sum + e.amount, 0);
+                        const remaining = budget.amount - spent;
+                        const percent = budget.amount > 0 ? spent / budget.amount : 0;
+                        
+                        let barColor = 'bg-green-500';
+                        if (percent >= 0.9) barColor = 'bg-red-500';
+                        else if (percent >= 0.7) barColor = 'bg-orange-400';
+                        
+                        const isCurrentPeriod = effectiveBudgetStart.getTime() !== new Date(budget.start_date).getTime();
+                        
+                        return (
+                          <div key={budget.id} className="p-3 border border-border/50 rounded-lg bg-background/80">
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center gap-2">
+                                <div className="font-semibold text-foreground">
+                                  {categories.find(c => c.id === budget.category_id)?.name || budget.name}
+                                </div>
+                                {isCurrentPeriod && (
+                                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                                    Current Month
+                                  </span>
+                                )}
+                              </div>
+                              <Button size="sm" variant="outline" onClick={() => openEditBudget(budget)}>Edit</Button>
+                            </div>
+                            <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                              <span>Budget: ₹{budget.amount.toFixed(2)}</span>
+                              <span>Spent: ₹{spent.toFixed(2)}</span>
+                              <span>Left: ₹{remaining.toFixed(2)}</span>
+                            </div>
+                            <div className="text-xs text-muted-foreground mb-2">
+                              Period: {effectiveBudgetStart.toLocaleDateString()} - {effectiveBudgetEnd.toLocaleDateString()}
+                            </div>
+                            <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                              <div className={`h-2 rounded-full transition-all duration-300 ${barColor}`} style={{ width: `${Math.min(percent * 100, 100)}%` }} />
+                            </div>
+                            <div className="text-right text-xs mt-1" style={{ color: percent >= 0.9 ? '#ef4444' : percent >= 0.7 ? '#f59e42' : '#22c55e' }}>
+                              {Math.round(percent * 100)}% used
+                            </div>
                           </div>
-                          <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                            <span>Budget: ₹{budget.amount.toFixed(2)}</span>
-                            <span>Spent: ₹{spent.toFixed(2)}</span>
-                            <span>Left: ₹{remaining.toFixed(2)}</span>
-                          </div>
-                          <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                            <div className={`h-2 rounded-full transition-all duration-300 ${barColor}`} style={{ width: `${Math.min(percent * 100, 100)}%` }} />
-                          </div>
-                          <div className="text-right text-xs mt-1" style={{ color: percent >= 0.9 ? '#ef4444' : percent >= 0.7 ? '#f59e42' : '#22c55e' }}>
-                            {Math.round(percent * 100)}% used
-                          </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
                   </div>
                 )}
               </div>
@@ -699,38 +765,3 @@ export const Dashboard = () => {
     </>
   );
 };
-
-  // Helper to render expense card (keeps styling consistent)
-  function renderExpenseCard(expense) {
-    if (!expense) return null;
-    const category = safeCategories.find(c => c.id === expense.category_id) || {};
-    const account = safeAccounts.find(a => a.id === expense.account_id) || {};
-    return (
-      <div key={expense.id} className="flex items-center justify-between p-4 rounded-xl bg-background/80 border border-border/50 shadow-sm hover:shadow-lg transition-shadow group cursor-pointer" onClick={() => openExpenseDetail(expense)}>
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="text-2xl" style={{ color: category.color || '#888' }}>{category.icon || '💰'}</span>
-          <div className="min-w-0">
-            <div className="font-semibold text-foreground text-base truncate group-hover:underline">{expense.title}</div>
-            <div className="flex items-center gap-x-2 flex-wrap text-muted-foreground text-xs">
-              <span className="truncate flex items-center gap-x-1">
-                <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: category.color || '#888' }} />
-                {category.name || 'Unknown'}
-              </span>
-              <span className="hidden sm:inline">•</span>
-              <span>{account.account_name || 'Unknown'}</span>
-              <span className="hidden sm:inline">•</span>
-              <span>{expense.date ? new Date(expense.date).toLocaleDateString() : ''}</span>
-            </div>
-            {expense.description && (
-              <div className="text-xs text-muted-foreground mt-1 truncate">{expense.description}</div>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="text-right flex-shrink-0 ml-2">
-            <div className="font-bold text-destructive text-lg sm:text-xl group-hover:scale-110 transition-transform">-₹{formatAmount(expense.amount)}</div>
-          </div>
-        </div>
-      </div>
-    );
-  }

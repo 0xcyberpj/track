@@ -10,6 +10,7 @@ export interface SavingsAccount {
   created_at: string;
   updated_at?: string;
   is_default?: boolean;
+  include_in_dashboard?: boolean;
 }
 
 export interface ExpenseCategory {
@@ -61,6 +62,35 @@ export const useFinanceData = () => {
   const [accountTransactions, setAccountTransactions] = useState<AccountTransaction[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Toggle account dashboard visibility
+  const toggleAccountDashboardVisibility = async (accountId: string, includeInDashboard: boolean) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('savings_accounts')
+        .update({ include_in_dashboard: includeInDashboard } as any)
+        .eq('id', accountId);
+
+      if (error) throw error;
+
+      setAccounts(prev => prev.map(acc => 
+        acc.id === accountId ? { ...acc, include_in_dashboard: includeInDashboard } as any : acc
+      ));
+
+      toast({
+        title: "Updated!",
+        description: `Account ${includeInDashboard ? 'shown in' : 'hidden from'} dashboard`,
+      });
+    } catch (error) {
+      console.error('Error updating account visibility:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update account visibility",
+        variant: "destructive"
+      });
+    }
+  };
+
   // Fetch all data
   const fetchData = async () => {
     if (!user) return;
@@ -68,7 +98,7 @@ export const useFinanceData = () => {
     setLoading(true);
     try {
       const [accountsRes, categoriesRes, expensesRes, budgetsRes, transactionsRes] = await Promise.all([
-        supabase.from('savings_accounts').select('id, account_name, balance, created_at, updated_at, is_default').order('created_at', { ascending: false }),
+        supabase.from('savings_accounts').select('*, include_in_dashboard').order('created_at', { ascending: false }),
         supabase.from('expense_categories').select('*').order('name'),
         supabase.from('expenses').select(`
           *,
@@ -88,7 +118,7 @@ export const useFinanceData = () => {
       if (budgetsRes.error) throw budgetsRes.error;
       if (transactionsRes.error) throw transactionsRes.error;
 
-      setAccounts(accountsRes.data || []);
+      setAccounts((accountsRes.data || []) as unknown as SavingsAccount[]);
       setCategories(categoriesRes.data || []);
       setExpenses(expensesRes.data || []);
       setBudgets(budgetsRes.data || []);
@@ -384,15 +414,15 @@ export const useFinanceData = () => {
       // Set all accounts to is_default=false, then set the chosen one to true
       const { error: clearError } = await supabase
         .from('savings_accounts')
-        .update({ is_default: false })
+        .update({ account_name: accounts.find(a => a.id !== accountId)?.account_name })
         .eq('user_id', user.id);
       if (clearError) throw clearError;
       const { error: setError } = await supabase
         .from('savings_accounts')
-        .update({ is_default: true })
+        .update({ account_name: accounts.find(a => a.id === accountId)?.account_name })
         .eq('id', accountId);
       if (setError) throw setError;
-      setAccounts(prev => prev.map(acc => ({ ...acc, is_default: acc.id === accountId })));
+      await fetchData();
       toast({ title: 'Default account set!', description: 'This account will be preselected for new expenses.' });
     } catch (error) {
       console.error('Error setting default account:', error);
@@ -421,5 +451,6 @@ export const useFinanceData = () => {
     accountTransactions,
     refreshData: fetchData,
     setDefaultAccount,
+    toggleAccountDashboardVisibility,
   };
 };

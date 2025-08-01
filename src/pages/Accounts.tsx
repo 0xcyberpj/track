@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useFinanceData } from '@/hooks/useFinanceData';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Wallet, DollarSign, Loader2, ArrowUpRight, ArrowDownLeft, Pencil } from 'lucide-react';
+import { Plus, Wallet, DollarSign, Loader2, ArrowUpRight, ArrowDownLeft, Pencil, Eye, EyeOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import FloatingAddExpenseButton from '../components/FloatingAddExpenseButton';
@@ -21,7 +21,7 @@ const formatAmount = (amount: number) => amount.toLocaleString('en-IN', { minimu
 
 const Accounts = () => {
   const navigate = useNavigate();
-  const { accounts, createAccount, loading, categories, budgets, createBudget, updateAccountBalance, addAccountTransaction, accountTransactions } = useFinanceData();
+  const { accounts, createAccount, loading, categories, budgets, createBudget, updateAccountBalance, addAccountTransaction, accountTransactions, toggleAccountDashboardVisibility } = useFinanceData();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isTransactionDialogOpen, setIsTransactionDialogOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<any>(null);
@@ -403,9 +403,31 @@ const Accounts = () => {
                       >
                         Add Expense
                       </Button>
-                    </div>
-                    {/* Transaction Log */}
-                    <div className="mt-4">
+                     </div>
+                     
+                     {/* Dashboard Visibility Toggle */}
+                     <div className="flex items-center justify-between py-2 border-t">
+                       <span className="text-xs text-muted-foreground">Show in Dashboard</span>
+                       <button
+                         onClick={() => toggleAccountDashboardVisibility(account.id, !account.include_in_dashboard)}
+                         className="flex items-center gap-1 text-xs px-2 py-1 rounded hover:bg-muted/30 transition-colors"
+                       >
+                         {account.include_in_dashboard !== false ? (
+                           <>
+                             <Eye className="h-3 w-3 text-green-500" />
+                             <span className="text-green-500">Visible</span>
+                           </>
+                         ) : (
+                           <>
+                             <EyeOff className="h-3 w-3 text-muted-foreground" />
+                             <span className="text-muted-foreground">Hidden</span>
+                           </>
+                         )}
+                       </button>
+                     </div>
+                     
+                     {/* Transaction Log */}
+                     <div className="mt-4">
                       <div className="font-semibold text-sm mb-2">Recent Transactions</div>
                       <ul className="space-y-1">
                         {accountTransactions.filter(t => t.account_id === account.id).slice(0, 5).map(txn => (
