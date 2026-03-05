@@ -2,13 +2,13 @@ import { Plus } from 'lucide-react';
 
 const FloatingAddExpenseButton = () => (
   <button
-    className="fixed right-6 bottom-[88px] z-50 bg-primary text-primary-foreground rounded-full shadow-lg p-4 flex items-center justify-center hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary"
-    style={{ boxShadow: '0 4px 24px 0 rgba(0,0,0,0.15)' }}
+    className="fixed right-5 bottom-[72px] z-40 bg-primary text-primary-foreground rounded-2xl shadow-lg p-3.5 flex items-center justify-center hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary active:scale-95 transition-transform"
+    style={{ boxShadow: '0 4px 20px 0 hsl(152 70% 42% / 0.3)' }}
     onClick={() => window.dispatchEvent(new CustomEvent('open-quick-modal'))}
     aria-label="Add Expense"
   >
-    <Plus width={28} height={28} />
+    <Plus width={22} height={22} />
   </button>
 );
 
-export default FloatingAddExpenseButton; 
+export default FloatingAddExpenseButton;
