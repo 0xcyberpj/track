@@ -114,10 +114,10 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'hsl(0 0% 2%)' }}>
+      <Card className="w-full max-w-md border-0" style={{ background: 'hsl(0 0% 4%)', boxShadow: '0 4px 40px -8px hsl(0 0% 0% / 0.8)' }}>
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Finance Tracker</CardTitle>
+          <CardTitle className="text-2xl bg-primary-gradient bg-clip-text text-transparent font-bold">JUST TRACKER</CardTitle>
           <CardDescription>
             Manage your expenses and savings with ease
           </CardDescription>
