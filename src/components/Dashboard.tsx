@@ -2,20 +2,51 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, Download, Calendar, Search, DollarSign, PieChart, CreditCard, Plus, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { TrendingUp, TrendingDown, Download, Calendar, Search, PieChart, Plus, Loader2, ChevronDown, ChevronUp, Clock, Eye, EyeOff, Wallet, Target } from "lucide-react";
 import { useFinanceData } from "@/hooks/useFinanceData";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { format } from 'date-fns';
+import { format, isToday, isYesterday, startOfMonth, endOfMonth, subMonths, differenceInDays } from 'date-fns';
 import FloatingAddExpenseButton from './FloatingAddExpenseButton';
 import { useToast } from "@/components/ui/use-toast";
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Calendar as DatePicker } from '@/components/ui/calendar';
 import { Calendar as CalendarIcon } from 'lucide-react';
+
 // Utility for formatting amounts
 const formatAmount = (amount: number) => amount.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+
+// Format expense date with relative labels
+const formatExpenseDate = (dateStr: string) => {
+  const date = new Date(dateStr);
+  if (isToday(date)) return 'Today';
+  if (isYesterday(date)) return 'Yesterday';
+  const now = new Date();
+  const daysDiff = differenceInDays(now, date);
+  if (daysDiff < 7) return format(date, 'EEEE'); // Day name for this week
+  if (date.getFullYear() === now.getFullYear()) return format(date, 'MMM d');
+  return format(date, 'MMM d, yyyy');
+};
+
+// Format day group header
+const formatDayHeader = (dayStr: string) => {
+  const date = new Date(dayStr);
+  if (isToday(date)) return 'Today';
+  if (isYesterday(date)) return 'Yesterday';
+  const now = new Date();
+  if (date.getFullYear() === now.getFullYear()) return format(date, 'EEEE, MMM d');
+  return format(date, 'EEEE, MMM d, yyyy');
+};
+
+// Get greeting based on time of day
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good Morning';
+  if (hour < 17) return 'Good Afternoon';
+  return 'Good Evening';
+};
 
 export const Dashboard = () => {
   const navigate = useNavigate();
@@ -38,10 +69,7 @@ export const Dashboard = () => {
   });
 
   // Month selector state
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const now = new Date();
-    return format(now, 'yyyy-MM');
-  });
+  const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM'));
 
   // Expense edit modal state
   const [expenseModalOpen, setExpenseModalOpen] = useState(false);
@@ -73,26 +101,51 @@ export const Dashboard = () => {
 
   // Delete expense state
   const [deleting, setDeleting] = useState(false);
-  const handleDeleteExpense = async () => {
-    if (!selectedExpense) return;
-    if (!window.confirm('Are you sure you want to delete this expense?')) return;
-    setDeleting(true);
-    try {
-      await deleteExpense(selectedExpense.id);
-      setDetailModalOpen(false);
-    } finally {
-      setDeleting(false);
-    }
+
+  // Auto-fill dates when period changes to monthly
+  const handlePeriodChange = (value: string) => {
+    setBudgetForm(prev => {
+      if (value === 'monthly') {
+        const now = new Date();
+        return {
+          ...prev,
+          period: value,
+          start_date: format(startOfMonth(now), 'yyyy-MM-dd'),
+          end_date: format(endOfMonth(now), 'yyyy-MM-dd')
+        };
+      }
+      if (value === 'weekly') {
+        const now = new Date();
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - now.getDay());
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        return {
+          ...prev,
+          period: value,
+          start_date: format(startOfWeek, 'yyyy-MM-dd'),
+          end_date: format(endOfWeek, 'yyyy-MM-dd')
+        };
+      }
+      return { ...prev, period: value };
+    });
   };
 
   const openCreateBudget = () => {
-    console.log('openCreateBudget called');
     setEditingBudget(null);
-    setBudgetForm({ name: '', amount: '', period: 'monthly', start_date: '', end_date: '', category_id: '' });
+    const now = new Date();
+    setBudgetForm({
+      name: '',
+      amount: '',
+      period: 'monthly',
+      start_date: format(startOfMonth(now), 'yyyy-MM-dd'),
+      end_date: format(endOfMonth(now), 'yyyy-MM-dd'),
+      category_id: ''
+    });
     setBudgetModalOpen(true);
   };
+
   const openEditBudget = (budget) => {
-    console.log('openEditBudget called', budget);
     setEditingBudget(budget);
     setBudgetForm({
       name: budget.name,
@@ -104,6 +157,7 @@ export const Dashboard = () => {
     });
     setBudgetModalOpen(true);
   };
+
   const handleBudgetFormChange = (e) => {
     setBudgetForm({ ...budgetForm, [e.target.name]: e.target.value });
   };
@@ -129,18 +183,6 @@ export const Dashboard = () => {
     setBudgetModalOpen(false);
   };
 
-  const openEditExpense = (expense) => {
-    setEditingExpense(expense);
-    setExpenseForm({
-      title: expense.title,
-      amount: expense.amount.toString(),
-      date: expense.date,
-      account_id: expense.account_id,
-      category_id: expense.category_id,
-      description: expense.description || ''
-    });
-    setExpenseModalOpen(true);
-  };
   const handleExpenseFormChange = (e) => {
     setExpenseForm({ ...expenseForm, [e.target.name]: e.target.value });
   };
@@ -162,21 +204,28 @@ export const Dashboard = () => {
     setExpenseModalOpen(false);
   };
 
-  // Calculate current month expenses (monthly reset logic)
+  // Calculate current month expenses
   const currentDate = new Date();
-  const currentMonthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-  const currentMonthExpenses = expenses.filter(expense => 
+  const currentMonthStart = startOfMonth(currentDate);
+  const currentMonthEnd = endOfMonth(currentDate);
+  const currentMonthExpenses = expenses.filter(expense =>
     new Date(expense.date) >= currentMonthStart
   );
   const totalExpenses = currentMonthExpenses.reduce((sum, expense) => sum + (typeof expense.amount === 'number' ? expense.amount : parseFloat(expense.amount)), 0);
+
+  // Previous month comparison
+  const prevMonthStart = startOfMonth(subMonths(currentDate, 1));
+  const prevMonthEnd = endOfMonth(subMonths(currentDate, 1));
+  const prevMonthExpenses = expenses.filter(expense => {
+    const d = new Date(expense.date);
+    return d >= prevMonthStart && d <= prevMonthEnd;
+  });
+  const prevMonthTotal = prevMonthExpenses.reduce((sum, e) => sum + (typeof e.amount === 'number' ? e.amount : parseFloat(e.amount)), 0);
+  const monthTrend = prevMonthTotal > 0 ? ((totalExpenses - prevMonthTotal) / prevMonthTotal) * 100 : 0;
+
   // Only include accounts that are set to show in dashboard
   const dashboardAccounts = accounts.filter(account => account.include_in_dashboard !== false);
   const totalBalance = dashboardAccounts.reduce((sum, account) => sum + (typeof account.balance === 'number' ? account.balance : parseFloat(account.balance)), 0);
-
-  // Filter recent expenses (last 5)
-  const recentExpenses = expenses
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 5);
 
   // Get all months with expenses
   const monthsWithExpenses = Array.from(new Set(expenses.map(e => format(new Date(e.date), 'yyyy-MM')))).sort((a, b) => b.localeCompare(a));
@@ -190,59 +239,27 @@ export const Dashboard = () => {
     return matchesSearch && matchesCategory && matchesMonth;
   });
 
-  // Defensive: ensure arrays are always defined
   const safeExpenses = Array.isArray(filteredExpenses) ? filteredExpenses : [];
   const safeCategories = Array.isArray(categories) ? categories : [];
-  const safeAccounts = Array.isArray(accounts) ? accounts : [];
 
-  // --- Grouping logic for Recent Expenses ---
-  function groupExpensesByDay(expenses) {
-    return (expenses || []).reduce((acc, expense) => {
+  // Group expenses by day
+  const grouped = useMemo(() => {
+    return (safeExpenses || []).reduce((acc, expense) => {
       if (!expense || !expense.date) return acc;
       const day = format(new Date(expense.date), 'yyyy-MM-dd');
       if (!acc[day]) acc[day] = [];
       acc[day].push(expense);
       return acc;
     }, {});
-  }
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
-  const yesterdayStr = format(new Date(Date.now() - 86400000), 'yyyy-MM-dd');
-  const grouped = groupExpensesByDay(safeExpenses);
+  }, [safeExpenses]);
+
   const allDays = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
-  const todayExpenses = grouped[todayStr] || [];
-  const yesterdayExpenses = grouped[yesterdayStr] || [];
-  const earlierDays = allDays.filter(day => day !== todayStr && day !== yesterdayStr);
 
-  // Load More state for earlier days
-  const [earlierVisibleCount, setEarlierVisibleCount] = useState(1);
-  const visibleEarlierDays = earlierDays.slice(0, earlierVisibleCount);
-  const [showYesterday, setShowYesterday] = useState(true);
-  const [showEarlier, setShowEarlier] = useState(true);
+  // Load More state for days
+  const [visibleDayCount, setVisibleDayCount] = useState(5);
+  const visibleDays = allDays.slice(0, visibleDayCount);
 
-  useEffect(() => {
-    const handler = () => {
-      // This effect is now redundant as the FAB handles the modal open
-      // Keeping it for now, but it might be removed if the FAB is the only way to open it.
-    };
-    window.addEventListener('open-quick-modal', handler);
-    return () => window.removeEventListener('open-quick-modal', handler);
-  }, []);
-
-  useEffect(() => {
-    setBudgetModalOpen(false);
-    setDetailModalOpen(false);
-    setExpenseModalOpen(false);
-  }, [location]);
-
-  useEffect(() => {
-    const handler = (e) => {
-      // Log the tag and class of the clicked element
-      console.log('Clicked element:', e.target.tagName, e.target.className, e.target);
-    };
-    document.addEventListener('click', handler, true);
-    return () => document.removeEventListener('click', handler, true);
-  }, []);
-
+  // Quick expense state
   const [quickExpense, setQuickExpense] = useState({
     title: '',
     amount: '',
@@ -254,7 +271,6 @@ export const Dashboard = () => {
   const [quickLoading, setQuickLoading] = useState(false);
   const { toast } = useToast();
 
-  // Ensure quickExpense always has a valid account_id and category_id when data loads
   useEffect(() => {
     setQuickExpense(prev => ({
       ...prev,
@@ -263,63 +279,189 @@ export const Dashboard = () => {
     }));
   }, [accounts, categories]);
 
-  console.log('budgetModalOpen', budgetModalOpen);
-  // Add this debug button at the top of the return statement
-  // It will forcibly close all modals when clicked
+  useEffect(() => {
+    setBudgetModalOpen(false);
+    setDetailModalOpen(false);
+    setExpenseModalOpen(false);
+  }, [location]);
+
+  // Dynamic date range for current selected month
+  const selectedMonthDate = new Date(selectedMonth + '-01');
+  const selectedMonthLabel = format(selectedMonthDate, 'MMMM yyyy');
+  const selectedMonthStartDate = format(startOfMonth(selectedMonthDate), 'MMM dd');
+  const selectedMonthEndDate = format(endOfMonth(selectedMonthDate), 'MMM dd, yyyy');
+
+  // Category breakdown for selected month
+  const categoryBreakdown = useMemo(() => {
+    return safeCategories
+      .map(category => {
+        const catExpenses = safeExpenses.filter(e => e.category_id === category.id);
+        const total = catExpenses.reduce((sum, e) => sum + e.amount, 0);
+        const selectedTotal = safeExpenses.reduce((s, e) => s + e.amount, 0);
+        const pct = selectedTotal > 0 ? (total / selectedTotal) * 100 : 0;
+        return { ...category, total, pct };
+      })
+      .filter(c => c.total > 0)
+      .sort((a, b) => b.total - a.total);
+  }, [safeExpenses, safeCategories]);
+
+  // Budget calculations with proper monthly reset
+  const budgetItems = useMemo(() => {
+    return budgets
+      .filter(budget => {
+        const now = new Date();
+        const budgetEnd = new Date(budget.end_date);
+
+        // Monthly budgets: always show (they auto-renew)
+        if (budget.period === 'monthly') {
+          // Hide only if expired more than 3 months ago
+          if (budgetEnd < now) {
+            const monthsDiff = (now.getFullYear() - budgetEnd.getFullYear()) * 12 +
+                             (now.getMonth() - budgetEnd.getMonth());
+            return monthsDiff <= 3;
+          }
+          return true;
+        }
+
+        // Non-monthly: show if still active
+        return budgetEnd >= now;
+      })
+      .map(budget => {
+        const now = new Date();
+        const budgetEnd = new Date(budget.end_date);
+
+        // For monthly budgets, always use current month window
+        let effectiveStart, effectiveEnd;
+        let isAutoRenewed = false;
+
+        if (budget.period === 'monthly') {
+          const originalStart = new Date(budget.start_date);
+          const currentMonthBudgetStart = startOfMonth(now);
+          const currentMonthBudgetEnd = endOfMonth(now);
+
+          if (budgetEnd < now || originalStart < currentMonthBudgetStart) {
+            // Budget period has passed or started before this month - use current month
+            effectiveStart = currentMonthBudgetStart;
+            effectiveEnd = currentMonthBudgetEnd;
+            isAutoRenewed = true;
+          } else {
+            effectiveStart = originalStart;
+            effectiveEnd = budgetEnd;
+          }
+        } else {
+          effectiveStart = new Date(budget.start_date);
+          effectiveEnd = budgetEnd;
+        }
+
+        const expensesForBudget = expenses.filter(e =>
+          e.category_id === budget.category_id &&
+          new Date(e.date) >= effectiveStart &&
+          new Date(e.date) <= effectiveEnd
+        );
+
+        const spent = expensesForBudget.reduce((sum, e) => sum + e.amount, 0);
+        const remaining = budget.amount - spent;
+        const percent = budget.amount > 0 ? spent / budget.amount : 0;
+        const daysLeft = Math.max(0, differenceInDays(effectiveEnd, now));
+
+        return {
+          ...budget,
+          spent,
+          remaining,
+          percent,
+          effectiveStart,
+          effectiveEnd,
+          isAutoRenewed,
+          daysLeft
+        };
+      });
+  }, [budgets, expenses]);
+
   return (
     <>
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 pt-safe">
-        {/* Main Panel: Recent Expenses, Budget Overview (Quick Add Expense Widget removed) */}
-        <div className="xl:col-span-2 space-y-6">
-          {/* Quick Add Expense Widget removed. FAB now shows on all screens. */}
-          {/* Floating Add Expense Button (FAB) - now on all screens */}
+        {/* Main Panel */}
+        <div className="xl:col-span-2 space-y-5">
           <FloatingAddExpenseButton />
-          {/* Spacer for fixed nav bar */}
           <div className="h-2 sm:h-0 w-full" />
-          {/* Month Selector, Search, Filter, Export - single line */}
-          {/* Mobile: compact filter row */}
-          <div className="flex flex-row items-center gap-4 mb-2 px-4 w-full justify-center sm:hidden mx-auto">
-            <div className="flex-1 min-w-0 max-w-[110px]">
+
+          {/* Greeting & Date Header */}
+          <div className="px-4 sm:px-0 sm:mt-14">
+            <h2 className="text-xl sm:text-2xl font-bold text-foreground">{getGreeting()}</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {format(currentDate, 'EEEE, MMMM d, yyyy')} &middot; {format(currentDate, 'h:mm a')}
+            </p>
+          </div>
+
+          {/* Summary Cards - Mobile */}
+          <div className="grid grid-cols-2 gap-3 px-4 sm:hidden">
+            <Card className="bg-card-gradient shadow-card border-border/50">
+              <CardContent className="p-4">
+                <div className="text-xs text-muted-foreground mb-1">This Month</div>
+                <div className="text-lg font-bold text-primary">₹{formatAmount(totalExpenses)}</div>
+                {prevMonthTotal > 0 && (
+                  <div className={`text-xs flex items-center gap-1 mt-1 ${monthTrend > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                    {monthTrend > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                    {Math.abs(monthTrend).toFixed(0)}% vs last month
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            <Card className="bg-card-gradient shadow-card border-border/50">
+              <CardContent className="p-4">
+                <div className="text-xs text-muted-foreground mb-1">Balance</div>
+                <button onClick={() => setBalanceVisible(!balanceVisible)} className="text-lg font-bold text-foreground flex items-center gap-1.5">
+                  {balanceVisible ? <>₹{formatAmount(totalBalance)}</> : <span className="tracking-wider">₹*****</span>}
+                  {balanceVisible ? <EyeOff className="h-3.5 w-3.5 text-muted-foreground" /> : <Eye className="h-3.5 w-3.5 text-muted-foreground" />}
+                </button>
+                <div className="text-xs text-muted-foreground mt-1">{dashboardAccounts.length} account{dashboardAccounts.length !== 1 ? 's' : ''}</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Filters */}
+          {/* Mobile filter row */}
+          <div className="flex flex-row items-center gap-3 px-4 w-full sm:hidden">
+            <div className="flex-1 min-w-0 max-w-[120px]">
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="h-9 px-2 text-xs">{selectedMonth}</SelectTrigger>
+                <SelectTrigger className="h-9 px-2 text-xs">
+                  {format(new Date(selectedMonth + '-01'), 'MMM yyyy')}
+                </SelectTrigger>
                 <SelectContent>
                   {monthsWithExpenses.map(month => (
-                    <SelectItem key={month} value={month}>{format(new Date(month + '-01'), 'yyyy-MM')}</SelectItem>
+                    <SelectItem key={month} value={month}>{format(new Date(month + '-01'), 'MMM yyyy')}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex-1 min-w-0 max-w-[120px]">
-              <Input placeholder="Search expenses..." className="h-9 px-2 text-xs w-full bg-transparent border rounded" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} aria-label="Search expenses" />
+            <div className="flex-1 min-w-0">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input placeholder="Search..." className="h-9 pl-7 pr-2 text-xs w-full bg-transparent border rounded" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+              </div>
             </div>
-            <div className="flex-1 min-w-0 max-w-[60px]">
+            <div className="flex-shrink-0 w-[50px]">
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="h-9 px-2 text-xs flex items-center justify-center" aria-label="Filter by category">
-                  <span className="sr-only">Category</span>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 4a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2a1 1 0 0 1-.293.707l-7 7V21a1 1 0 0 1-2 0v-7.293l-7-7A1 1 0 0 1 3 6V4z" /></svg>
+                <SelectTrigger className="h-9 px-2 text-xs">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 4a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v2a1 1 0 0 1-.293.707l-7 7V21a1 1 0 0 1-2 0v-7.293l-7-7A1 1 0 0 1 3 6V4z" /></svg>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
                   {categories.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
-                      <span className="text-base">{category.icon || '💰'}</span>
+                      <span className="text-base">{category.icon || '💰'}</span> {category.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <button className="w-9 h-9 flex items-center justify-center rounded bg-muted hover:bg-muted/70 transition" aria-label="Export">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 5v14m7-7H5" /></svg>
-            </button>
           </div>
-          {/* Mobile: add space below bar */}
-          <div className="block sm:hidden mt-4" />
-          {/* Desktop: full filter row (inlined controls) */}
-          <div className="hidden sm:flex flex-row flex-wrap gap-3 items-end mt-16 mb-8 w-full justify-center mx-auto px-0">
-            {/* Month Selector */}
-            <div className="flex-1 min-w-[120px]">
+
+          {/* Desktop filter row */}
+          <div className="hidden sm:flex flex-row flex-wrap gap-3 items-end mt-2 mb-4 w-full justify-center mx-auto px-0">
+            <div className="flex-1 min-w-[140px]">
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="flex-1 min-w-[120px] h-9 px-3 text-sm rounded-md shadow-none"><SelectValue placeholder="Select month" /></SelectTrigger>
+                <SelectTrigger className="h-9 px-3 text-sm rounded-md shadow-none"><SelectValue placeholder="Select month" /></SelectTrigger>
                 <SelectContent>
                   {monthsWithExpenses.map(month => (
                     <SelectItem key={month} value={month}>{format(new Date(month + '-01'), 'MMMM yyyy')}</SelectItem>
@@ -327,14 +469,15 @@ export const Dashboard = () => {
                 </SelectContent>
               </Select>
             </div>
-            {/* Search Input */}
-            <div className="flex-1 min-w-[160px]">
-              <Input placeholder="Search expenses..." className="flex-1 min-w-[160px] h-9 px-3 text-sm rounded-md shadow-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} aria-label="Search expenses" />
+            <div className="flex-1 min-w-[180px]">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Search expenses..." className="h-9 pl-9 pr-3 text-sm rounded-md shadow-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+              </div>
             </div>
-            {/* Category Filter */}
-            <div className="flex-1 min-w-[140px]">
+            <div className="flex-1 min-w-[160px]">
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="flex-1 min-w-[140px] h-9 px-3 text-sm rounded-md shadow-none"><SelectValue placeholder="Category" /></SelectTrigger>
+                <SelectTrigger className="h-9 px-3 text-sm rounded-md shadow-none"><SelectValue placeholder="Category" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
                   {categories.map((category) => (
@@ -342,30 +485,36 @@ export const Dashboard = () => {
                       <div className="flex items-center space-x-2">
                         <span className="text-base">{category.icon || '💰'}</span>
                         <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: category.color }} />
-                        <span className="text-sm sm:text-base">{category.name}</span>
+                        <span className="text-sm">{category.name}</span>
                       </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            {/* Export Button */}
             <div className="flex-shrink-0">
               <Button variant="outline" size="icon" className="h-9 w-9 p-0 rounded-md shadow-none" aria-label="Export">
                 <Download className="h-4 w-4" />
               </Button>
             </div>
           </div>
-          {/* Recent Expenses List */}
-          {/* Extra space for desktop after bar */}
-          <div className="hidden sm:block mt-8" />
+
+          {/* Recent Expenses List - Grouped by Day */}
           <div>
             <Card className="bg-card-gradient shadow-card border-border/50">
-              <CardHeader className="pb-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-xl font-semibold text-foreground">Recent Expenses</CardTitle>
-                    <p className="text-sm text-muted-foreground mt-1">Your latest spending records</p>
+                    <CardTitle className="text-lg font-semibold text-foreground">Expenses</CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {safeExpenses.length} transaction{safeExpenses.length !== 1 ? 's' : ''} in {selectedMonthLabel}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-bold text-destructive">
+                      -₹{formatAmount(safeExpenses.reduce((s, e) => s + e.amount, 0))}
+                    </div>
+                    <div className="text-xs text-muted-foreground">total</div>
                   </div>
                 </div>
               </CardHeader>
@@ -375,63 +524,100 @@ export const Dashboard = () => {
                     <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
                     <p>Loading expenses...</p>
                   </div>
-                ) : filteredExpenses.length === 0 ? (
+                ) : safeExpenses.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground flex flex-col items-center">
-                    <span className="text-6xl mb-4">🦄</span>
-                    <p className="text-lg font-medium">No expenses found.</p>
-                    <p className="text-sm mb-2">Add your first expense to start tracking!</p>
-                    <Button className="mt-2" onClick={() => window.innerWidth < 768 ? window.dispatchEvent(new CustomEvent('open-quick-modal')) : null}>
-                      <Plus className="h-4 w-4 mr-2" />
+                    <Wallet className="h-12 w-12 mb-3 opacity-30" />
+                    <p className="text-base font-medium">No expenses found</p>
+                    <p className="text-sm mt-1 mb-3">Start tracking your spending</p>
+                    <Button size="sm" onClick={() => window.dispatchEvent(new CustomEvent('open-quick-modal'))}>
+                      <Plus className="h-4 w-4 mr-1.5" />
                       Add Expense
                     </Button>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {filteredExpenses.map((expense) => {
-                      const category = categories.find(c => c.id === expense.category_id);
-                      const account = accounts.find(a => a.id === expense.account_id);
-                      return (
-                        <div key={expense.id} className="flex items-center justify-between p-4 rounded-xl bg-background/80 border border-border/50 shadow-sm hover:shadow-lg transition-shadow group cursor-pointer" onClick={() => openExpenseDetail(expense)}>
-                          <div className="flex items-center gap-3 min-w-0">
-                            <span className="text-2xl" style={{ color: category?.color || '#888' }}>{category?.icon || '💰'}</span>
-                            <div className="min-w-0">
-                              <div className="font-semibold text-foreground text-base truncate group-hover:underline">{expense.title}</div>
-                              <div className="flex items-center gap-x-2 flex-wrap text-muted-foreground text-xs">
-                                {/* Category */}
-                                <span className="flex items-center gap-x-1">
-                                  <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: category?.color || '#888' }} />
-                                  {category?.name}
-                                </span>
-                                {/* Account badge */}
-                                {account?.account_name === 'SBI' ? (
-                                  <span className="ml-0 sm:ml-1 px-1 py-0 rounded text-[10px] font-semibold bg-blue-400/20 text-blue-200 sm:px-2 sm:py-0.5 sm:rounded-full sm:text-xs sm:bg-blue-800 sm:text-blue-100">SBI</span>
-                                ) : account?.account_name === 'CAN' ? (
-                                  <span className="ml-0 sm:ml-1 px-1 py-0 rounded text-[10px] font-semibold bg-green-900/40 text-green-400 sm:px-2 sm:py-0.5 sm:rounded-full sm:text-xs">CAN</span>
-                                ) : account?.account_name ? (
-                                  <span className="ml-0 sm:ml-1 px-1 py-0 rounded text-[10px] font-semibold bg-muted/40 text-muted-foreground sm:px-2 sm:py-0.5 sm:rounded-full sm:text-xs">{account.account_name}</span>
-                                ) : null}
-                                {/* Date */}
-                                <span>{expense.date ? new Date(expense.date).toLocaleDateString() : ''}</span>
-                              </div>
-                              {expense.description && (
-                                <div className="text-xs text-muted-foreground mt-1 truncate">{expense.description}</div>
-                              )}
-                            </div>
-                          </div>
+                  <div className="space-y-4">
+                    {visibleDays.map(day => (
+                      <div key={day}>
+                        {/* Day header */}
+                        <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
-                            <div className="text-right flex-shrink-0 ml-2">
-                              <div className="font-bold text-destructive text-lg sm:text-xl group-hover:scale-110 transition-transform">-₹{formatAmount(expense.amount)}</div>
-                            </div>
+                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                              {formatDayHeader(day)}
+                            </span>
                           </div>
+                          <span className="text-xs text-muted-foreground">
+                            -₹{formatAmount(grouped[day].reduce((s, e) => s + e.amount, 0))}
+                          </span>
                         </div>
-                      );
-                    })}
+                        {/* Day expenses */}
+                        <div className="space-y-2">
+                          {grouped[day].map((expense) => {
+                            const category = categories.find(c => c.id === expense.category_id);
+                            const account = accounts.find(a => a.id === expense.account_id);
+                            return (
+                              <div
+                                key={expense.id}
+                                className="flex items-center justify-between p-3 sm:p-4 rounded-xl bg-background/80 border border-border/50 hover:border-border hover:shadow-md transition-all group cursor-pointer"
+                                onClick={() => openExpenseDetail(expense)}
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-lg" style={{ backgroundColor: `${category?.color}15` || '#88888815' }}>
+                                    {category?.icon || '💰'}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="font-medium text-foreground text-sm sm:text-base truncate">{expense.title}</div>
+                                    <div className="flex items-center gap-x-2 flex-wrap text-muted-foreground text-xs mt-0.5">
+                                      <span className="flex items-center gap-x-1">
+                                        <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: category?.color || '#888' }} />
+                                        {category?.name}
+                                      </span>
+                                      {account?.account_name && (
+                                        <span className="px-1.5 py-0 rounded-md text-[10px] font-medium bg-muted/60 text-muted-foreground">
+                                          {account.account_name}
+                                        </span>
+                                      )}
+                                      <span className="flex items-center gap-0.5">
+                                        <Clock className="h-3 w-3" />
+                                        {format(new Date(expense.date), 'h:mm a')}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-right flex-shrink-0 ml-2">
+                                  <div className="font-bold text-destructive text-base sm:text-lg">-₹{formatAmount(expense.amount)}</div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                    {/* Load more */}
+                    {allDays.length > visibleDayCount && (
+                      <button
+                        className="w-full py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center gap-1.5 rounded-lg hover:bg-muted/30"
+                        onClick={() => setVisibleDayCount(prev => prev + 5)}
+                      >
+                        <ChevronDown className="h-4 w-4" />
+                        Show more ({allDays.length - visibleDayCount} more days)
+                      </button>
+                    )}
+                    {visibleDayCount > 5 && (
+                      <button
+                        className="w-full py-2 text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center gap-1"
+                        onClick={() => setVisibleDayCount(5)}
+                      >
+                        <ChevronUp className="h-3.5 w-3.5" />
+                        Show less
+                      </button>
+                    )}
                   </div>
                 )}
               </CardContent>
             </Card>
           </div>
-          {/* Expense Detail Modal */}
+
+          {/* Expense Detail/Edit Modal */}
           {detailModalOpen && (
             <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
               <DialogContent className="max-w-md w-full">
@@ -447,7 +633,7 @@ export const Dashboard = () => {
                       setDeleting(false);
                       setDetailModalOpen(false);
                     }}>
-                      <div className="space-y-2 mt-2">
+                      <div className="space-y-3 mt-2">
                         <div className="flex flex-col gap-1">
                           <Label htmlFor="expense-title">Title</Label>
                           <Input id="expense-title" name="title" value={expenseForm.title} onChange={handleExpenseFormChange} required />
@@ -466,7 +652,7 @@ export const Dashboard = () => {
                                   <div className="flex items-center space-x-2">
                                     <span className="text-base">{category.icon || '💰'}</span>
                                     <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: category.color }} />
-                                    <span className="text-sm sm:text-base">{category.name}</span>
+                                    <span className="text-sm">{category.name}</span>
                                   </div>
                                 </SelectItem>
                               ))}
@@ -486,7 +672,17 @@ export const Dashboard = () => {
                         </div>
                         <div className="flex flex-col gap-1">
                           <Label htmlFor="expense-date">Date</Label>
-                          <DatePicker selected={expenseForm.date ? new Date(expenseForm.date) : undefined} onSelect={date => handleExpenseFormChange({ target: { name: 'date', value: date ? date.toISOString().slice(0, 10) : '' } })} />
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button type="button" className="w-full h-10 px-3 py-2 border rounded-md bg-background text-left flex items-center gap-2">
+                                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                                <span>{expenseForm.date ? format(new Date(expenseForm.date), 'MMM d, yyyy') : 'Pick a date'}</span>
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent align="start" className="p-0">
+                              <DatePicker selected={expenseForm.date ? new Date(expenseForm.date) : undefined} onSelect={date => handleExpenseFormChange({ target: { name: 'date', value: date ? date.toISOString().slice(0, 10) : '' } })} />
+                            </PopoverContent>
+                          </Popover>
                         </div>
                         <div className="flex flex-col gap-1">
                           <Label htmlFor="expense-description">Description</Label>
@@ -494,7 +690,7 @@ export const Dashboard = () => {
                         </div>
                       </div>
                       <DialogFooter className="flex flex-row gap-2 justify-end mt-4">
-                        <Button type="submit" variant="outline" disabled={deleting}>
+                        <Button type="submit" disabled={deleting}>
                           {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
                         </Button>
                         <Button variant="destructive" onClick={async (e) => { e.preventDefault(); if(window.confirm('Delete this expense?')) { setDeleting(true); await deleteExpense(selectedExpense.id); setDeleting(false); setDetailModalOpen(false); } }} disabled={deleting}>
@@ -508,189 +704,162 @@ export const Dashboard = () => {
             </Dialog>
           )}
         </div>
+
         {/* Statistics Sidebar */}
-        <div className="space-y-6">
-          {/* Total Expenses Card */}
+        <div className="space-y-5">
+          {/* Statistics Card */}
           <Card className="bg-card-gradient shadow-card border-border/50">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-lg font-semibold text-foreground">STATISTICS</CardTitle>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Download className="h-4 w-4" />
+              <CardTitle className="text-lg font-semibold text-foreground">Statistics</CardTitle>
+              <Button variant="outline" size="sm" className="gap-2 h-8">
+                <Download className="h-3.5 w-3.5" />
                 Export
               </Button>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="text-sm text-muted-foreground">
-                Overview of your expenses
-              </div>
+            <CardContent className="space-y-4">
+              {/* Dynamic date range */}
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Calendar className="h-4 w-4" />
-                <span>Jul 01 - Jul 31, 25</span>
+                <span>{selectedMonthStartDate} - {selectedMonthEndDate}</span>
               </div>
-              <div className="bg-secondary/30 p-6 rounded-lg border border-border/30">
-                <div className="text-sm text-muted-foreground mb-2">TOTAL EXPENSES</div>
-                <div className="text-3xl font-bold text-primary mb-1">₹{formatAmount(totalExpenses)}</div>
-                <div className="text-sm text-muted-foreground">All time</div>
-              </div>
-                <div className="bg-secondary/30 p-6 rounded-lg border border-border/30">
-                  <div className="text-sm text-muted-foreground mb-2">TOTAL BALANCE</div>
-                  <button 
-                    onClick={() => setBalanceVisible(!balanceVisible)}
-                    className="text-3xl font-bold text-success mb-1 hover:text-success/80 transition-colors"
-                  >
-                    {balanceVisible ? (
-                      <>₹{formatAmount(totalBalance)}</>
-                    ) : (
-                      <span className="tracking-wider">₹•••••••</span>
-                    )}
-                  </button>
-                  <div className="text-sm text-muted-foreground">
-                    {dashboardAccounts.length} account{dashboardAccounts.length !== 1 ? 's' : ''} • Click to {balanceVisible ? 'hide' : 'show'}
-                  </div>
+
+              {/* Total Expenses */}
+              <div className="bg-secondary/30 p-5 rounded-xl border border-border/30">
+                <div className="text-xs text-muted-foreground mb-1.5 uppercase tracking-wide">Total Expenses</div>
+                <div className="text-2xl sm:text-3xl font-bold text-primary">₹{formatAmount(totalExpenses)}</div>
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  {prevMonthTotal > 0 ? (
+                    <span className={`text-xs flex items-center gap-1 ${monthTrend > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                      {monthTrend > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                      {Math.abs(monthTrend).toFixed(1)}% vs {format(subMonths(currentDate, 1), 'MMM')}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Current month</span>
+                  )}
                 </div>
-              <div className="bg-secondary/30 p-6 rounded-lg border border-border/30">
-                <div className="text-sm text-muted-foreground mb-2">BY CATEGORY</div>
-                {expenses.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <PieChart className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No category data available</p>
+              </div>
+
+              {/* Total Balance */}
+              <div className="bg-secondary/30 p-5 rounded-xl border border-border/30">
+                <div className="text-xs text-muted-foreground mb-1.5 uppercase tracking-wide">Total Balance</div>
+                <button
+                  onClick={() => setBalanceVisible(!balanceVisible)}
+                  className="text-2xl sm:text-3xl font-bold text-success flex items-center gap-2 hover:text-success/80 transition-colors"
+                >
+                  {balanceVisible ? <>₹{formatAmount(totalBalance)}</> : <span className="tracking-wider">₹*****</span>}
+                  {balanceVisible ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                </button>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {dashboardAccounts.length} account{dashboardAccounts.length !== 1 ? 's' : ''}
+                </div>
+              </div>
+
+              {/* Category Breakdown */}
+              <div className="bg-secondary/30 p-5 rounded-xl border border-border/30">
+                <div className="text-xs text-muted-foreground mb-3 uppercase tracking-wide">By Category</div>
+                {categoryBreakdown.length === 0 ? (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <PieChart className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                    <p className="text-xs">No data for this month</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {categories.map((category) => {
-                      const categoryExpenses = expenses.filter(e => e.category_id === category.id);
-                      const categoryTotal = categoryExpenses.reduce((sum, e) => sum + e.amount, 0);
-                      const percentage = totalExpenses > 0 ? (categoryTotal / totalExpenses) * 100 : 0;
-                      if (categoryTotal === 0) return null;
-                      return (
-                        <div key={category.id} className="flex items-center justify-between">
+                    {categoryBreakdown.map((cat) => (
+                      <div key={cat.id}>
+                        <div className="flex items-center justify-between mb-1">
                           <div className="flex items-center gap-2">
-                            <span className="text-base">{category.icon || '💰'}</span>
-                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: category.color }} />
-                            <span className="text-sm text-foreground">{category.name}</span>
+                            <span className="text-sm">{cat.icon || '💰'}</span>
+                            <span className="text-sm text-foreground">{cat.name}</span>
                           </div>
                           <div className="text-right">
-                            <div className="text-sm font-medium text-foreground">₹{formatAmount(categoryTotal)}</div>
-                            <div className="text-xs text-muted-foreground">{percentage.toFixed(1)}%</div>
+                            <span className="text-sm font-medium text-foreground">₹{formatAmount(cat.total)}</span>
                           </div>
                         </div>
-                      );
-                    })}
+                        <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div className="h-1.5 rounded-full transition-all duration-300" style={{ width: `${cat.pct}%`, backgroundColor: cat.color }} />
+                        </div>
+                        <div className="text-right text-xs text-muted-foreground mt-0.5">{cat.pct.toFixed(1)}%</div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
             </CardContent>
           </Card>
-          {/* Budget Overview Card (moved below Statistics) */}
-          <Card className="mb-4">
+
+          {/* Budget Overview Card */}
+          <Card className="bg-card-gradient shadow-card border-border/50">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <div>
-                <CardTitle className="text-lg font-semibold text-foreground">Budget Overview</CardTitle>
-                <p className="text-sm text-muted-foreground">Set and track your spending limits</p>
+                <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <Target className="h-5 w-5 text-primary" />
+                  Budgets
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">Track your spending limits</p>
               </div>
-              <Button size="icon" variant="outline" onClick={openCreateBudget} aria-label="Create Budget" className="ml-2">
-                <Plus className="h-5 w-5" />
+              <Button size="icon" variant="outline" onClick={openCreateBudget} aria-label="Create Budget" className="h-8 w-8">
+                <Plus className="h-4 w-4" />
               </Button>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {budgets.length === 0 ? (
+              <div className="space-y-3">
+                {budgetItems.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
-                    <p className="text-sm mb-4">No budgets created yet</p>
-                    <p className="text-xs">Create your first budget to start tracking your spending</p>
+                    <Target className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm mb-1">No budgets yet</p>
+                    <p className="text-xs">Create a budget to track spending</p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    {budgets
-                      .filter(budget => {
-                        // Only show active budgets or budgets that should auto-renew
-                        const currentDate = new Date();
-                        const budgetEnd = new Date(budget.end_date);
-                        const budgetStart = new Date(budget.start_date);
-                        
-                        // If budget is monthly and has ended, check if we should show current month version
-                        if (budget.period === 'monthly' && budgetEnd < currentDate) {
-                          // For monthly budgets, show if it's within a reasonable timeframe (last 3 months)
-                          const monthsDiff = (currentDate.getFullYear() - budgetEnd.getFullYear()) * 12 + 
-                                           (currentDate.getMonth() - budgetEnd.getMonth());
-                          return monthsDiff <= 3; // Show recently ended monthly budgets
-                        }
-                        
-                        // Show active budgets
-                        return budgetEnd >= currentDate || budgetStart <= currentDate;
-                      })
-                      .map(budget => {
-                        const currentDate = new Date();
-                        const budgetEnd = new Date(budget.end_date);
-                        
-                        // For monthly budgets that have ended, calculate for current month
-                        let effectiveBudgetStart, effectiveBudgetEnd;
-                        
-                        if (budget.period === 'monthly' && budgetEnd < currentDate) {
-                          // Calculate current month period for expired monthly budgets
-                          effectiveBudgetStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-                          effectiveBudgetEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-                        } else {
-                          // Use original budget dates for active budgets
-                          effectiveBudgetStart = new Date(budget.start_date);
-                          effectiveBudgetEnd = new Date(budget.end_date);
-                        }
-                        
-                        // Calculate spent/remaining for this budget's category and effective period
-                        const expensesForBudget = expenses.filter(e =>
-                          e.category_id === budget.category_id &&
-                          new Date(e.date) >= effectiveBudgetStart &&
-                          new Date(e.date) <= effectiveBudgetEnd
-                        );
-                        
-                        const spent = expensesForBudget.reduce((sum, e) => sum + e.amount, 0);
-                        const remaining = budget.amount - spent;
-                        const percent = budget.amount > 0 ? spent / budget.amount : 0;
-                        
-                        let barColor = 'bg-green-500';
-                        if (percent >= 0.9) barColor = 'bg-red-500';
-                        else if (percent >= 0.7) barColor = 'bg-orange-400';
-                        
-                        const isCurrentPeriod = effectiveBudgetStart.getTime() !== new Date(budget.start_date).getTime();
-                        
-                        return (
-                          <div key={budget.id} className="p-3 border border-border/50 rounded-lg bg-background/80">
-                            <div className="flex items-center justify-between mb-1">
-                              <div className="flex items-center gap-2">
-                                <div className="font-semibold text-foreground">
-                                  {categories.find(c => c.id === budget.category_id)?.name || budget.name}
-                                </div>
-                                {isCurrentPeriod && (
-                                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
-                                    Current Month
+                  budgetItems.map(budget => {
+                    let barColor = 'bg-green-500';
+                    if (budget.percent >= 0.9) barColor = 'bg-red-500';
+                    else if (budget.percent >= 0.7) barColor = 'bg-orange-400';
+
+                    return (
+                      <div key={budget.id} className="p-3 border border-border/50 rounded-xl bg-background/80 hover:border-border transition-colors">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">{budget.category?.icon || '💰'}</span>
+                            <div>
+                              <div className="font-medium text-foreground text-sm">
+                                {budget.category?.name || budget.name}
+                              </div>
+                              <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                {budget.isAutoRenewed && (
+                                  <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full font-medium">
+                                    Auto-renewed
                                   </span>
                                 )}
+                                <span>{format(budget.effectiveStart, 'MMM d')} - {format(budget.effectiveEnd, 'MMM d')}</span>
+                                {budget.daysLeft > 0 && (
+                                  <span className="text-muted-foreground/70">&middot; {budget.daysLeft}d left</span>
+                                )}
                               </div>
-                              <Button size="sm" variant="outline" onClick={() => openEditBudget(budget)}>Edit</Button>
-                            </div>
-                            <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                              <span>Budget: ₹{budget.amount.toFixed(2)}</span>
-                              <span>Spent: ₹{spent.toFixed(2)}</span>
-                              <span>Left: ₹{remaining.toFixed(2)}</span>
-                            </div>
-                            <div className="text-xs text-muted-foreground mb-2">
-                              Period: {effectiveBudgetStart.toLocaleDateString()} - {effectiveBudgetEnd.toLocaleDateString()}
-                            </div>
-                            <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                              <div className={`h-2 rounded-full transition-all duration-300 ${barColor}`} style={{ width: `${Math.min(percent * 100, 100)}%` }} />
-                            </div>
-                            <div className="text-right text-xs mt-1" style={{ color: percent >= 0.9 ? '#ef4444' : percent >= 0.7 ? '#f59e42' : '#22c55e' }}>
-                              {Math.round(percent * 100)}% used
                             </div>
                           </div>
-                        );
-                      })}
-                  </div>
+                          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => openEditBudget(budget)}>Edit</Button>
+                        </div>
+                        {/* Progress bar */}
+                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden mb-1.5">
+                          <div className={`h-2 rounded-full transition-all duration-500 ${barColor}`} style={{ width: `${Math.min(budget.percent * 100, 100)}%` }} />
+                        </div>
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>₹{formatAmount(budget.spent)} / ₹{formatAmount(budget.amount)}</span>
+                          <span style={{ color: budget.percent >= 0.9 ? '#ef4444' : budget.percent >= 0.7 ? '#f59e42' : '#22c55e' }}>
+                            {budget.remaining >= 0
+                              ? `₹${formatAmount(budget.remaining)} left`
+                              : `₹${formatAmount(Math.abs(budget.remaining))} over`}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </CardContent>
           </Card>
         </div>
+
         {/* Budget Modal Dialog */}
         <Dialog open={budgetModalOpen} onOpenChange={setBudgetModalOpen}>
           <DialogContent className="max-w-md w-full">
@@ -700,11 +869,11 @@ export const Dashboard = () => {
             <form onSubmit={handleBudgetSubmit} className="space-y-4">
               <div className="flex flex-col gap-1">
                 <Label htmlFor="budget-name">Name</Label>
-                <Input id="budget-name" name="name" value={budgetForm.name} onChange={handleBudgetFormChange} required />
+                <Input id="budget-name" name="name" value={budgetForm.name} onChange={handleBudgetFormChange} placeholder="e.g. Food Budget" required />
               </div>
               <div className="flex flex-col gap-1">
-                <Label htmlFor="budget-amount">Amount</Label>
-                <Input id="budget-amount" name="amount" type="number" min="0" value={budgetForm.amount} onChange={handleBudgetFormChange} required />
+                <Label htmlFor="budget-amount">Amount (₹)</Label>
+                <Input id="budget-amount" name="amount" type="number" min="0" value={budgetForm.amount} onChange={handleBudgetFormChange} placeholder="5000" required />
               </div>
               <div className="flex flex-col gap-1">
                 <Label htmlFor="budget-category">Category</Label>
@@ -716,14 +885,31 @@ export const Dashboard = () => {
                         <div className="flex items-center space-x-2">
                           <span className="text-base">{category.icon || '💰'}</span>
                           <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: category.color }} />
-                          <span className="text-sm sm:text-base">{category.name}</span>
+                          <span className="text-sm">{category.name}</span>
                         </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              {/* Start and End Date on the same row, each with a popover calendar */}
+              {/* Period selector */}
+              <div className="flex flex-col gap-1">
+                <Label>Period</Label>
+                <Select value={budgetForm.period} onValueChange={handlePeriodChange}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly (auto-resets each month)</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="custom">Custom range</SelectItem>
+                  </SelectContent>
+                </Select>
+                {budgetForm.period === 'monthly' && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Budget automatically resets on the 1st of each month
+                  </p>
+                )}
+              </div>
+              {/* Start and End Date */}
               <div className="flex gap-2">
                 <div className="flex-1 flex flex-col gap-1">
                   <Label htmlFor="budget-start">Start Date</Label>
@@ -731,7 +917,7 @@ export const Dashboard = () => {
                     <PopoverTrigger asChild>
                       <button type="button" className="w-full h-10 px-3 py-2 border rounded-md bg-background text-left flex items-center gap-2">
                         <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                        <span>{budgetForm.start_date ? new Date(budgetForm.start_date).toLocaleDateString() : 'Pick a date'}</span>
+                        <span className="text-sm">{budgetForm.start_date ? format(new Date(budgetForm.start_date), 'MMM d, yyyy') : 'Pick a date'}</span>
                       </button>
                     </PopoverTrigger>
                     <PopoverContent align="start" className="p-0">
@@ -745,7 +931,7 @@ export const Dashboard = () => {
                     <PopoverTrigger asChild>
                       <button type="button" className="w-full h-10 px-3 py-2 border rounded-md bg-background text-left flex items-center gap-2">
                         <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                        <span>{budgetForm.end_date ? new Date(budgetForm.end_date).toLocaleDateString() : 'Pick a date'}</span>
+                        <span className="text-sm">{budgetForm.end_date ? format(new Date(budgetForm.end_date), 'MMM d, yyyy') : 'Pick a date'}</span>
                       </button>
                     </PopoverTrigger>
                     <PopoverContent align="start" className="p-0">

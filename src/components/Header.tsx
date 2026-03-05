@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { BarChart3, TrendingUp, Plus, LogOut, Menu, Wallet, PieChart, Settings, User, MoreHorizontal } from "lucide-react";
+import { BarChart3, Plus, LogOut, Wallet, PieChart, MoreHorizontal } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
@@ -27,27 +27,24 @@ export const Header = () => {
   ];
 
   const handleNavigation = (path: string) => {
-    console.log('Navigating to:', path); // Debug: verify click
     navigate(path);
     setMobileMenuOpen(false);
   };
 
   return (
     <>
-      {/* Only show header for md+ screens */}
-      <header className="hidden md:block sticky top-0 z-50 w-full bg-background/95 backdrop-blur-sm">
+      {/* Desktop header */}
+      <header className="hidden md:block sticky top-0 z-50 w-full bg-background/95 backdrop-blur-sm border-b border-border/50">
         <div className="container mx-auto px-3 h-14 flex items-center justify-between">
-          {/* Remove logo/icon for mobile */}
-          <div className="hidden sm:flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-primary-gradient">
               <BarChart3 className="h-5 w-5 text-primary-foreground" />
             </div>
-            <h1 className="text-lg font-bold bg-primary-gradient bg-clip-text text-transparent hidden sm:block">
+            <h1 className="text-lg font-bold bg-primary-gradient bg-clip-text text-transparent">
               JUST TRACKER
             </h1>
           </div>
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="flex items-center gap-1">
             {navigationItems.map((item) => {
               const IconComponent = item.icon;
               return (
@@ -64,7 +61,6 @@ export const Header = () => {
               );
             })}
           </nav>
-          {/* User & Mobile Menu */}
           <div className="flex items-center gap-2">
             <div className="hidden lg:flex items-center gap-2">
               <Avatar className="h-7 w-7 ring-2 ring-primary/20">
@@ -76,78 +72,56 @@ export const Header = () => {
                 {user?.email?.split('@')[0] || 'User'}
               </span>
             </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="hidden md:flex gap-1.5 px-3"
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 px-3"
               onClick={handleSignOut}
             >
               <LogOut className="h-4 w-4" />
               <span className="text-sm">Logout</span>
             </Button>
-            {/* Mobile Menu (hidden on mobile now) */}
           </div>
         </div>
       </header>
-      {/* Mobile nav bar at the very top, more compact */}
+
+      {/* Mobile bottom nav */}
       <Sheet>
         <nav
-          className="md:hidden fixed bottom-0 left-0 right-0 flex justify-around items-center py-2 pb-safe pb-4 bg-background/80 z-50 rounded-t-xl backdrop-blur supports-[backdrop-filter]:backdrop-blur gap-x-2"
+          className="md:hidden fixed bottom-0 left-0 right-0 flex justify-around items-center py-1.5 pb-safe pb-3 bg-background/95 backdrop-blur-sm z-50 rounded-t-2xl border-t border-border/50"
           style={{ pointerEvents: 'auto', height: '56px' }}
         >
-          <div className="px-2 py-2.5">
-            <button
-              onClick={() => handleNavigation('/')}
-              className={`flex flex-col items-center ${isActive('/') ? 'text-primary' : 'text-muted-foreground'} transition-transform active:scale-95`}
-              style={{ pointerEvents: 'auto' }}
-            >
-              <span className="rounded-full bg-primary/10 p-1.5 mb-0.5 flex items-center justify-center"><BarChart3 className="h-6 w-6" /></span>
-              <span className="text-[11px] font-medium leading-none">Dashboard</span>
-            </button>
-          </div>
-          <div className="px-2 py-2.5">
-            <button
-              onClick={() => handleNavigation('/insights')}
-              className={`flex flex-col items-center ${isActive('/insights') ? 'text-primary' : 'text-muted-foreground'} transition-transform active:scale-95`}
-              style={{ pointerEvents: 'auto' }}
-            >
-              <span className="rounded-full bg-primary/10 p-1.5 mb-0.5 flex items-center justify-center"><PieChart className="h-6 w-6" /></span>
-              <span className="text-[11px] font-medium leading-none">Insights</span>
-            </button>
-          </div>
-          <div className="px-2 py-2.5">
-            <button
-              onClick={() => handleNavigation('/accounts')}
-              className={`flex flex-col items-center ${isActive('/accounts') ? 'text-primary' : 'text-muted-foreground'} transition-transform active:scale-95`}
-              style={{ pointerEvents: 'auto' }}
-            >
-              <span className="rounded-full bg-primary/10 p-1.5 mb-0.5 flex items-center justify-center"><Wallet className="h-6 w-6" /></span>
-              <span className="text-[11px] font-medium leading-none">Savings</span>
-            </button>
-          </div>
-          <div className="px-2 py-2.5">
-            <button
-              onClick={() => window.dispatchEvent(new CustomEvent('open-quick-modal'))}
-              className={`flex flex-col items-center ${isActive('/add-expense') ? 'text-primary' : 'text-muted-foreground'} transition-transform active:scale-95`}
-              style={{ pointerEvents: 'auto' }}
-            >
-              <span className="rounded-full bg-primary/10 p-1.5 mb-0.5 flex items-center justify-center"><Plus className="h-6 w-6" /></span>
-              <span className="text-[11px] font-medium leading-none">Add</span>
-            </button>
-          </div>
-          <div className="px-2 py-2.5">
+          {[
+            { path: '/', icon: BarChart3, label: 'Dashboard' },
+            { path: '/insights', icon: PieChart, label: 'Insights' },
+            { path: '/accounts', icon: Wallet, label: 'Savings' },
+            { path: '__add__', icon: Plus, label: 'Add' },
+          ].map(item => (
+            <div key={item.path} className="px-2 py-1">
+              <button
+                onClick={() => item.path === '__add__' ? window.dispatchEvent(new CustomEvent('open-quick-modal')) : handleNavigation(item.path)}
+                className={`flex flex-col items-center ${item.path !== '__add__' && isActive(item.path) ? 'text-primary' : 'text-muted-foreground'} transition-all active:scale-95`}
+              >
+                <span className={`rounded-full p-1.5 mb-0.5 flex items-center justify-center ${item.path !== '__add__' && isActive(item.path) ? 'bg-primary/15' : 'bg-transparent'}`}>
+                  <item.icon className="h-5 w-5" />
+                </span>
+                <span className="text-[10px] font-medium leading-none">{item.label}</span>
+              </button>
+            </div>
+          ))}
+          <div className="px-2 py-1">
             <SheetTrigger asChild>
-              <button className="flex flex-col items-center transition-transform active:scale-95" style={{ pointerEvents: 'auto' }}>
-                <span className="rounded-full bg-primary/10 p-1.5 mb-0.5 flex items-center justify-center"><MoreHorizontal className="h-6 w-6" /></span>
-                <span className="text-[11px] font-medium leading-none">Menu</span>
+              <button className="flex flex-col items-center text-muted-foreground transition-all active:scale-95">
+                <span className="rounded-full p-1.5 mb-0.5 flex items-center justify-center">
+                  <MoreHorizontal className="h-5 w-5" />
+                </span>
+                <span className="text-[10px] font-medium leading-none">More</span>
               </button>
             </SheetTrigger>
           </div>
         </nav>
-        {/* SheetContent for mobile menu */}
         <SheetContent side="right" className="w-64 p-0">
           <div className="flex flex-col h-full">
-            {/* Mobile Header */}
             <div className="p-4 border-b border-border">
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10 ring-2 ring-primary/20">
@@ -165,7 +139,6 @@ export const Header = () => {
                 </div>
               </div>
             </div>
-            {/* Mobile Navigation */}
             <div className="flex-1 p-4">
               <nav className="space-y-2">
                 {navigationItems.map((item) => {
@@ -184,10 +157,9 @@ export const Header = () => {
                 })}
               </nav>
             </div>
-            {/* Mobile Logout */}
             <div className="p-4 border-t border-border">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full gap-3 h-11"
                 onClick={handleSignOut}
               >
@@ -198,7 +170,6 @@ export const Header = () => {
           </div>
         </SheetContent>
       </Sheet>
-      {/* NOTE: If navigation still does not work, check that your app is wrapped in <BrowserRouter> in main.tsx or App.tsx. */}
     </>
   );
 };
