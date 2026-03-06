@@ -130,16 +130,19 @@ export const Dashboard = () => {
   const handleExpenseFormChange = (e) => setExpenseForm({ ...expenseForm, [e.target.name]: e.target.value });
   const handleExpenseSelectChange = (name, value) => setExpenseForm({ ...expenseForm, [name]: value });
 
-  // Calculations
+  // Calculations - all based on selectedMonth for consistency
   const currentDate = new Date();
-  const currentMonthStart = startOfMonth(currentDate);
-  const currentMonthExpenses = expenses.filter(e => new Date(e.date) >= currentMonthStart);
-  const totalExpenses = currentMonthExpenses.reduce((sum, e) => sum + (typeof e.amount === 'number' ? e.amount : parseFloat(e.amount)), 0);
+  const selectedMonthDate_ = new Date(selectedMonth + '-01');
+  const selectedMonthStart = startOfMonth(selectedMonthDate_);
+  const selectedMonthEnd = endOfMonth(selectedMonthDate_);
+  const selectedMonthExpenses = expenses.filter(e => { const d = new Date(e.date); return d >= selectedMonthStart && d <= selectedMonthEnd; });
+  const totalExpenses = selectedMonthExpenses.reduce((sum, e) => sum + (typeof e.amount === 'number' ? e.amount : parseFloat(e.amount)), 0);
 
-  const prevMonthStart = startOfMonth(subMonths(currentDate, 1));
-  const prevMonthEnd = endOfMonth(subMonths(currentDate, 1));
+  const prevMonthStart = startOfMonth(subMonths(selectedMonthDate_, 1));
+  const prevMonthEnd = endOfMonth(subMonths(selectedMonthDate_, 1));
   const prevMonthTotal = expenses.filter(e => { const d = new Date(e.date); return d >= prevMonthStart && d <= prevMonthEnd; }).reduce((sum, e) => sum + e.amount, 0);
   const monthTrend = prevMonthTotal > 0 ? ((totalExpenses - prevMonthTotal) / prevMonthTotal) * 100 : 0;
+  const isCurrentMonth = selectedMonth === format(currentDate, 'yyyy-MM');
 
   const dashboardAccounts = accounts.filter(a => a.include_in_dashboard !== false);
   const totalBalance = dashboardAccounts.reduce((sum, a) => sum + (typeof a.balance === 'number' ? a.balance : parseFloat(a.balance)), 0);
@@ -173,10 +176,9 @@ export const Dashboard = () => {
 
   useEffect(() => { setBudgetModalOpen(false); setDetailModalOpen(false); setExpenseModalOpen(false); }, [location]);
 
-  const selectedMonthDate = new Date(selectedMonth + '-01');
-  const selectedMonthLabel = format(selectedMonthDate, 'MMMM yyyy');
-  const selectedMonthStartDate = format(startOfMonth(selectedMonthDate), 'MMM dd');
-  const selectedMonthEndDate = format(endOfMonth(selectedMonthDate), 'MMM dd, yyyy');
+  const selectedMonthLabel = format(selectedMonthDate_, 'MMMM yyyy');
+  const selectedMonthStartDate = format(selectedMonthStart, 'MMM dd');
+  const selectedMonthEndDate = format(selectedMonthEnd, 'MMM dd, yyyy');
   const selectedMonthTotal = safeExpenses.reduce((s, e) => s + e.amount, 0);
 
   // Category breakdown - FIXED: percentages based on selected month total
@@ -238,9 +240,9 @@ export const Dashboard = () => {
       });
   }, [budgets, expenses]);
 
-  const totalDaysInMonth = differenceInDays(endOfMonth(currentDate), startOfMonth(currentDate)) + 1;
-  const dayOfMonth = currentDate.getDate();
-  const monthProgress = (dayOfMonth / totalDaysInMonth) * 100;
+  const totalDaysInMonth = differenceInDays(selectedMonthEnd, selectedMonthStart) + 1;
+  const dayOfMonth = isCurrentMonth ? currentDate.getDate() : totalDaysInMonth;
+  const monthProgress = isCurrentMonth ? (dayOfMonth / totalDaysInMonth) * 100 : 100;
 
   return (
     <>
@@ -547,8 +549,8 @@ export const Dashboard = () => {
               {/* Month progress bar */}
               <div>
                 <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                  <span>{format(currentDate, 'MMM d')}</span>
-                  <span>Day {dayOfMonth} of {totalDaysInMonth}</span>
+                  <span>{isCurrentMonth ? format(currentDate, 'MMM d') : format(selectedMonthDate_, 'MMM yyyy')}</span>
+                  <span>{isCurrentMonth ? `Day ${dayOfMonth} of ${totalDaysInMonth}` : 'Completed'}</span>
                 </div>
                 <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
                   <div className="h-1 rounded-full bg-primary/50 transition-all duration-500" style={{ width: `${monthProgress}%` }} />
@@ -564,7 +566,7 @@ export const Dashboard = () => {
                   {prevMonthTotal > 0 && (
                     <div className={`text-xs flex items-center gap-1 mt-2 ${monthTrend > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
                       {monthTrend > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                      {Math.abs(monthTrend).toFixed(1)}% vs {format(subMonths(currentDate, 1), 'MMM')}
+                      {Math.abs(monthTrend).toFixed(1)}% vs {format(subMonths(selectedMonthDate_, 1), 'MMM')}
                     </div>
                   )}
                 </div>
