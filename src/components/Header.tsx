@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { BarChart3, Plus, LogOut, Wallet, PieChart, MoreHorizontal, Sun, Moon } from "lucide-react";
+import { BarChart3, Plus, LogOut, Wallet, PieChart, MoreHorizontal, Sun, Moon, Settings } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,7 +12,7 @@ export const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { theme, toggleTheme } = useTheme();
+  const { isDark, toggleMode } = useTheme();
 
   const handleSignOut = async () => {
     await signOut();
@@ -35,7 +35,7 @@ export const Header = () => {
 
   return (
     <>
-      {/* Desktop header - true black */}
+      {/* Desktop header */}
       <header className="hidden md:block sticky top-0 z-50 w-full" style={{ background: 'hsl(var(--background) / 0.95)', backdropFilter: 'blur(20px)', borderBottom: '1px solid hsl(var(--border))' }}>
         <div className="container mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -62,15 +62,22 @@ export const Header = () => {
               );
             })}
           </nav>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
             <button
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-all"
-              onClick={toggleTheme}
+              className="flex items-center gap-1.5 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-all"
+              onClick={toggleMode}
               aria-label="Toggle theme"
             >
-              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
-            <div className="hidden lg:flex items-center gap-2">
+            <button
+              className={`flex items-center gap-1.5 p-2 rounded-lg transition-all ${isActive('/settings') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'}`}
+              onClick={() => handleNavigation('/settings')}
+              aria-label="Settings"
+            >
+              <Settings className="h-4 w-4" />
+            </button>
+            <div className="hidden lg:flex items-center gap-2 ml-1.5">
               <Avatar className="h-7 w-7 ring-1 ring-border">
                 <AvatarFallback className="bg-muted text-foreground text-xs font-semibold">
                   {user?.email?.slice(0, 2).toUpperCase() || 'U'}
@@ -85,13 +92,13 @@ export const Header = () => {
               onClick={handleSignOut}
             >
               <LogOut className="h-4 w-4" />
-              Logout
+              <span className="hidden lg:inline">Logout</span>
             </button>
           </div>
         </div>
       </header>
 
-      {/* Mobile bottom nav - pure black */}
+      {/* Mobile bottom nav */}
       <Sheet>
         <nav
           className="md:hidden fixed bottom-0 left-0 right-0 flex justify-around items-center py-1 pb-safe z-50"
@@ -108,7 +115,7 @@ export const Header = () => {
                 onClick={() => item.path === '__add__' ? window.dispatchEvent(new CustomEvent('open-quick-modal')) : handleNavigation(item.path)}
                 className={`flex flex-col items-center py-1 px-2 rounded-xl transition-all active:scale-95 ${item.path !== '__add__' && isActive(item.path) ? 'text-primary' : 'text-muted-foreground'}`}
               >
-                <item.icon className={`h-5 w-5 ${item.path !== '__add__' && isActive(item.path) ? 'drop-shadow-[0_0_6px_hsl(152,72%,40%,0.4)]' : ''}`} />
+                <item.icon className={`h-5 w-5 ${item.path !== '__add__' && isActive(item.path) ? 'drop-shadow-[0_0_6px_hsl(var(--primary)/0.4)]' : ''}`} />
                 <span className="text-[9px] font-medium mt-1 tracking-wide">{item.label}</span>
               </button>
             </div>
@@ -127,7 +134,7 @@ export const Header = () => {
             <div className="p-5 border-b" style={{ borderColor: 'hsl(var(--border))' }}>
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10 ring-1 ring-border">
-                  <AvatarFallback className="bg-muted text-foreground font-semibold">
+                  <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                     {user?.email?.slice(0, 2).toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
@@ -143,7 +150,7 @@ export const Header = () => {
             </div>
             <div className="flex-1 p-4">
               <nav className="space-y-1">
-                {navigationItems.map((item) => {
+                {[...navigationItems, { path: '/settings', label: 'Settings', icon: Settings }].map((item) => {
                   const IconComponent = item.icon;
                   const active = isActive(item.path);
                   return (
@@ -162,10 +169,10 @@ export const Header = () => {
             <div className="p-4 space-y-2 border-t" style={{ borderColor: 'hsl(var(--border))' }}>
               <button
                 className="w-full flex items-center gap-3 h-11 px-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-all"
-                onClick={toggleTheme}
+                onClick={toggleMode}
               >
-                {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-                {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                {isDark ? 'Light Mode' : 'Dark Mode'}
               </button>
               <button
                 className="w-full flex items-center justify-center gap-2 h-11 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-all"
