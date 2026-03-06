@@ -29,7 +29,7 @@ function getInitialTheme(): ThemeId {
   // Migration from old 'theme' key
   const old = localStorage.getItem('theme');
   if (old === 'light') return 'light-emerald';
-  return 'dark-emerald';
+  return 'light-emerald';
 }
 
 function applyTheme(themeId: ThemeId) {
