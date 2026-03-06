@@ -170,8 +170,11 @@ const Insights = () => {
       <FloatingAddExpenseButton />
       <div className="container mx-auto px-3 py-4 max-w-7xl pb-24 sm:pb-8">
         {/* Title + Date Picker */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Insights</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6 animate-fade-in">
+          <div className="px-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">Insights</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Analyze your spending patterns</p>
+          </div>
           <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
             <PopoverTrigger asChild>
               <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl glass text-foreground hover:bg-muted/30 transition" aria-label="Select date range">
@@ -189,32 +192,20 @@ const Insights = () => {
 
         {/* Quick Stats Row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <Card className="glass border-0 rounded-2xl">
-            <CardContent className="py-4 px-4">
-              <div className="text-xs text-muted-foreground mb-1">Total Spent</div>
-              <div className="text-xl font-bold text-primary tabular-nums">₹{formatINR(totalSpentThisMonth)}</div>
-            </CardContent>
-          </Card>
-          <Card className="glass border-0 rounded-2xl">
-            <CardContent className="py-4 px-4">
-              <div className="text-xs text-muted-foreground mb-1">Biggest Expense</div>
-              <div className="text-xl font-bold text-destructive tabular-nums">{highestExpense ? `₹${formatINR(highestExpense.amount)}` : '--'}</div>
-              <div className="text-xs text-muted-foreground truncate">{highestExpense?.title || ''}</div>
-            </CardContent>
-          </Card>
-          <Card className="glass border-0 rounded-2xl">
-            <CardContent className="py-4 px-4">
-              <div className="text-xs text-muted-foreground mb-1">Daily Average</div>
-              <div className="text-xl font-bold text-foreground tabular-nums">₹{formatINR(avgDailySpend)}</div>
-            </CardContent>
-          </Card>
-          <Card className="glass border-0 rounded-2xl">
-            <CardContent className="py-4 px-4">
-              <div className="text-xs text-muted-foreground mb-1">Transactions</div>
-              <div className="text-xl font-bold text-foreground">{filteredExpenses.length}</div>
-              <div className="text-xs text-muted-foreground">{mostUsedAccount?.account_name || '--'}</div>
-            </CardContent>
-          </Card>
+          {[
+            { label: 'Total Spent', value: `₹${formatINR(totalSpentThisMonth)}`, color: 'text-primary', sub: '' },
+            { label: 'Biggest Expense', value: highestExpense ? `₹${formatINR(highestExpense.amount)}` : '--', color: 'text-destructive', sub: highestExpense?.title || '' },
+            { label: 'Daily Average', value: `₹${formatINR(avgDailySpend)}`, color: 'text-foreground', sub: '' },
+            { label: 'Transactions', value: `${filteredExpenses.length}`, color: 'text-foreground', sub: mostUsedAccount?.account_name || '--' },
+          ].map((stat, i) => (
+            <Card key={stat.label} className="glass border-0 rounded-2xl shadow-card animate-slide-up" style={{ animationDelay: `${i * 60}ms` }}>
+              <CardContent className="py-4 px-4">
+                <div className="text-[11px] text-muted-foreground uppercase tracking-widest mb-1">{stat.label}</div>
+                <div className={`text-xl font-bold tabular-nums ${stat.color}`}>{stat.value}</div>
+                {stat.sub && <div className="text-xs text-muted-foreground truncate mt-0.5">{stat.sub}</div>}
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
         {/* Streak + No-Spend + Trend Row */}
