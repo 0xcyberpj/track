@@ -234,8 +234,8 @@ export const Dashboard = () => {
 
           {/* Greeting */}
           <div className="px-4 sm:px-0 sm:mt-14 animate-fade-in">
-            <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">{getGreeting()}</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">{getGreeting()}</h2>
+            <p className="text-sm sm:text-base text-muted-foreground mt-0.5">
               {format(currentDate, 'EEEE, MMMM d, yyyy')}
             </p>
           </div>
@@ -243,22 +243,22 @@ export const Dashboard = () => {
           {/* Summary Cards - Mobile */}
           <div className="grid grid-cols-2 gap-3 px-4 sm:hidden animate-slide-up">
             <div className="glass rounded-2xl p-4 glow-primary">
-              <div className="text-[10px] text-muted-foreground uppercase tracking-widest mb-1">Spent</div>
-              <div className="text-xl font-bold text-primary">₹{formatAmount(totalExpenses)}</div>
+              <div className="text-[11px] text-muted-foreground uppercase tracking-widest mb-1">Spent</div>
+              <div className="text-2xl font-bold text-primary">₹{formatAmount(totalExpenses)}</div>
               {prevMonthTotal > 0 && (
-                <div className={`text-[10px] flex items-center gap-1 mt-1.5 ${monthTrend > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-                  {monthTrend > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                <div className={`text-xs flex items-center gap-1 mt-1.5 ${monthTrend > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                  {monthTrend > 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
                   {Math.abs(monthTrend).toFixed(0)}% vs last month
                 </div>
               )}
             </div>
             <div className="glass rounded-2xl p-4">
-              <div className="text-[10px] text-muted-foreground uppercase tracking-widest mb-1">Balance</div>
-              <button onClick={() => setBalanceVisible(!balanceVisible)} className="text-xl font-bold text-foreground flex items-center gap-1.5">
+              <div className="text-[11px] text-muted-foreground uppercase tracking-widest mb-1">Balance</div>
+              <button onClick={() => setBalanceVisible(!balanceVisible)} className="text-2xl font-bold text-foreground flex items-center gap-1.5">
                 {balanceVisible ? <>₹{formatAmount(totalBalance)}</> : <span className="tracking-widest">₹*****</span>}
               </button>
-              <div className="text-[10px] text-muted-foreground mt-1.5 flex items-center gap-1">
-                {balanceVisible ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+              <div className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
+                {balanceVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                 {dashboardAccounts.length} account{dashboardAccounts.length !== 1 ? 's' : ''}
               </div>
             </div>
@@ -268,7 +268,7 @@ export const Dashboard = () => {
           <div className="flex flex-row items-center gap-2 px-4 w-full sm:hidden">
             <div className="flex-1 min-w-0 max-w-[110px]">
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="h-8 px-2 text-[11px] rounded-xl glass border-0">{format(new Date(selectedMonth + '-01'), 'MMM yyyy')}</SelectTrigger>
+                <SelectTrigger className="h-9 px-2.5 text-xs rounded-xl glass border-0">{format(new Date(selectedMonth + '-01'), 'MMM yyyy')}</SelectTrigger>
                 <SelectContent>
                   {monthsWithExpenses.map(m => <SelectItem key={m} value={m}>{format(new Date(m + '-01'), 'MMM yyyy')}</SelectItem>)}
                 </SelectContent>
@@ -277,7 +277,7 @@ export const Dashboard = () => {
             <div className="flex-1 min-w-0">
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                <Input placeholder="Search..." className="h-8 pl-7 pr-2 text-[11px] w-full rounded-xl glass border-0" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                <Input placeholder="Search..." className="h-9 pl-7 pr-2 text-xs w-full rounded-xl glass border-0" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
               </div>
             </div>
             <div className="flex-shrink-0 w-[44px]">
@@ -337,13 +337,13 @@ export const Dashboard = () => {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-base font-semibold text-foreground">Expenses</CardTitle>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                    <CardTitle className="text-lg font-semibold text-foreground">Expenses</CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">
                       {safeExpenses.length} transaction{safeExpenses.length !== 1 ? 's' : ''} &middot; {selectedMonthLabel}
                     </p>
                   </div>
                   <div className="text-right">
-                    <div className="text-base font-bold text-destructive">-₹{formatAmount(selectedMonthTotal)}</div>
+                    <div className="text-lg font-bold text-destructive">-₹{formatAmount(selectedMonthTotal)}</div>
                   </div>
                 </div>
               </CardHeader>
@@ -369,10 +369,10 @@ export const Dashboard = () => {
                     {visibleDays.map((day, dayIdx) => (
                       <div key={day} className="animate-fade-in" style={{ animationDelay: `${dayIdx * 50}ms` }}>
                         <div className="flex items-center justify-between mb-2 px-1">
-                          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                             {formatDayHeader(day)}
                           </span>
-                          <span className="text-[11px] font-medium text-muted-foreground">
+                          <span className="text-xs font-medium text-muted-foreground">
                             -₹{formatAmount(grouped[day].reduce((s, e) => s + e.amount, 0))}
                           </span>
                         </div>
@@ -391,14 +391,15 @@ export const Dashboard = () => {
                                     {category?.icon || '💰'}
                                   </div>
                                   <div className="min-w-0">
-                                    <div className="font-medium text-foreground text-sm truncate">{expense.title}</div>
-                                    <div className="flex items-center gap-1.5 text-muted-foreground text-[11px] mt-0.5">
+                                    <div className="font-medium text-foreground text-[15px] truncate">{expense.title}</div>
+                                    <div className="flex items-center gap-1.5 text-muted-foreground text-xs mt-0.5">
                                       <span className="flex items-center gap-1">
                                         <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: category?.color || '#888' }} />
                                         {category?.name}
                                       </span>
+                                      {category?.icon && <span className="text-sm">{category.icon}</span>}
                                       {account?.account_name && (
-                                        <span className="px-1.5 py-0.5 rounded-md text-[9px] font-semibold bg-muted/80 text-muted-foreground uppercase tracking-wide">
+                                        <span className="px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-muted/80 text-muted-foreground uppercase tracking-wide">
                                           {account.account_name}
                                         </span>
                                       )}
@@ -406,7 +407,7 @@ export const Dashboard = () => {
                                   </div>
                                 </div>
                                 <div className="text-right flex-shrink-0 ml-2">
-                                  <div className="font-bold text-destructive text-sm sm:text-base tabular-nums">-₹{formatAmount(expense.amount)}</div>
+                                  <div className="font-bold text-destructive text-base tabular-nums">-₹{formatAmount(expense.amount)}</div>
                                 </div>
                               </div>
                             );
@@ -513,21 +514,21 @@ export const Dashboard = () => {
           {/* Statistics */}
           <Card className="glass rounded-2xl border-0 shadow-card animate-slide-up">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-base font-semibold text-foreground">Statistics</CardTitle>
-              <Button variant="ghost" size="sm" className="gap-1.5 h-7 text-xs text-muted-foreground hover:text-foreground rounded-lg">
-                <Download className="h-3 w-3" /> Export
+              <CardTitle className="text-lg font-semibold text-foreground">Statistics</CardTitle>
+              <Button variant="ghost" size="sm" className="gap-1.5 h-8 text-xs text-muted-foreground hover:text-foreground rounded-lg">
+                <Download className="h-3.5 w-3.5" /> Export
               </Button>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Date range */}
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Calendar className="h-3.5 w-3.5" />
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Calendar className="h-4 w-4" />
                 {selectedMonthStartDate} - {selectedMonthEndDate}
               </div>
 
               {/* Month progress bar */}
               <div>
-                <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+                <div className="flex justify-between text-xs text-muted-foreground mb-1">
                   <span>{format(currentDate, 'MMM d')}</span>
                   <span>Day {dayOfMonth} of {totalDaysInMonth}</span>
                 </div>
@@ -540,7 +541,7 @@ export const Dashboard = () => {
               <div className="rounded-2xl bg-secondary/40 p-5 relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
                 <div className="relative">
-                  <div className="text-[10px] text-muted-foreground uppercase tracking-widest mb-1.5">Total Expenses</div>
+                  <div className="text-xs text-muted-foreground uppercase tracking-widest mb-1.5">Total Expenses</div>
                   <div className="text-2xl sm:text-3xl font-bold text-primary tabular-nums">₹{formatAmount(totalExpenses)}</div>
                   {prevMonthTotal > 0 && (
                     <div className={`text-xs flex items-center gap-1 mt-2 ${monthTrend > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
@@ -553,17 +554,17 @@ export const Dashboard = () => {
 
               {/* Balance */}
               <div className="rounded-2xl bg-secondary/40 p-5">
-                <div className="text-[10px] text-muted-foreground uppercase tracking-widest mb-1.5">Total Balance</div>
+                <div className="text-xs text-muted-foreground uppercase tracking-widest mb-1.5">Total Balance</div>
                 <button onClick={() => setBalanceVisible(!balanceVisible)} className="text-2xl sm:text-3xl font-bold text-foreground flex items-center gap-2 hover:opacity-80 transition-opacity tabular-nums">
                   {balanceVisible ? <>₹{formatAmount(totalBalance)}</> : <span className="tracking-widest">₹*****</span>}
                   {balanceVisible ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
                 </button>
-                <div className="text-[10px] text-muted-foreground mt-1.5">{dashboardAccounts.length} account{dashboardAccounts.length !== 1 ? 's' : ''}</div>
+                <div className="text-xs text-muted-foreground mt-1.5">{dashboardAccounts.length} account{dashboardAccounts.length !== 1 ? 's' : ''}</div>
               </div>
 
               {/* Category Breakdown - FIXED PERCENTAGES */}
               <div className="rounded-2xl bg-secondary/40 p-5">
-                <div className="text-[10px] text-muted-foreground uppercase tracking-widest mb-3">By Category</div>
+                <div className="text-xs text-muted-foreground uppercase tracking-widest mb-3">By Category</div>
                 {categoryBreakdown.length === 0 ? (
                   <div className="text-center py-6 text-muted-foreground">
                     <PieChart className="h-6 w-6 mx-auto mb-2 opacity-30" />
@@ -578,17 +579,17 @@ export const Dashboard = () => {
                             <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm" style={{ backgroundColor: `${cat.color}18` }}>
                               {cat.icon || '💰'}
                             </div>
-                            <span className="text-xs font-medium text-foreground">{cat.name}</span>
+                            <span className="text-sm font-medium text-foreground">{cat.name}</span>
                           </div>
                           <div className="text-right">
-                            <span className="text-xs font-semibold text-foreground tabular-nums">₹{formatAmount(cat.total)}</span>
+                            <span className="text-sm font-semibold text-foreground tabular-nums">₹{formatAmount(cat.total)}</span>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                             <div className="h-1.5 rounded-full transition-all duration-500" style={{ width: `${cat.pct}%`, backgroundColor: cat.color }} />
                           </div>
-                          <span className="text-[10px] text-muted-foreground w-10 text-right tabular-nums">{cat.pct.toFixed(1)}%</span>
+                          <span className="text-xs text-muted-foreground w-10 text-right tabular-nums">{cat.pct.toFixed(1)}%</span>
                         </div>
                       </div>
                     ))}
@@ -602,11 +603,11 @@ export const Dashboard = () => {
           <Card className="glass rounded-2xl border-0 shadow-card animate-slide-up mb-20 sm:mb-0" style={{ animationDelay: '100ms' }}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <div>
-                <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+                <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
                   <Target className="h-4 w-4 text-primary" />
                   Budgets
                 </CardTitle>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   {format(currentDate, 'MMMM yyyy')} &middot; Spent resets monthly
                 </p>
               </div>
@@ -635,18 +636,18 @@ export const Dashboard = () => {
                       <div key={budget.id} className="rounded-xl bg-secondary/40 p-3 hover:bg-secondary/60 transition-colors">
                         {/* Top row: name + edit */}
                         <div className="flex items-center justify-between mb-1">
-                          <div className="font-medium text-foreground text-sm truncate">
+                          <div className="font-medium text-foreground text-[15px] truncate">
                             {budget.category?.name || budget.name}
                           </div>
-                          <button className="text-[10px] text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-md hover:bg-muted/50 transition-colors flex-shrink-0 ml-2" onClick={() => openEditBudget(budget)}>
+                          <button className="text-xs text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-md hover:bg-muted/50 transition-colors flex-shrink-0 ml-2" onClick={() => openEditBudget(budget)}>
                             Edit
                           </button>
                         </div>
                         {/* Period info */}
-                        <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 mb-2">
+                        <div className="text-xs text-muted-foreground flex items-center gap-1.5 mb-2">
                           {budget.isAutoRenewed && (
                             <span className="inline-flex items-center gap-0.5 text-primary font-medium">
-                              <RefreshCw className="h-2.5 w-2.5" /> Reset
+                              <RefreshCw className="h-3 w-3" /> Reset
                             </span>
                           )}
                           <span>{format(budget.effectiveStart, 'MMM d')} - {format(budget.effectiveEnd, 'MMM d')}</span>
@@ -657,7 +658,7 @@ export const Dashboard = () => {
                           <div className="h-2 rounded-full transition-all duration-700 ease-out" style={{ width: `${Math.min(budget.percent * 100, 100)}%`, backgroundColor: barColor }} />
                         </div>
                         {/* Amounts */}
-                        <div className="flex justify-between text-[10px]">
+                        <div className="flex justify-between text-xs">
                           <span className="text-muted-foreground tabular-nums">
                             ₹{formatAmount(budget.spent)} / ₹{formatAmount(budget.amount)}
                           </span>
@@ -665,7 +666,7 @@ export const Dashboard = () => {
                             {isOver ? `₹${formatAmount(Math.abs(budget.remaining))} over` : `₹${formatAmount(budget.remaining)} left`}
                           </span>
                         </div>
-                        <div className="text-right text-[9px] text-muted-foreground/50 mt-0.5 tabular-nums">
+                        <div className="text-right text-[11px] text-muted-foreground/50 mt-0.5 tabular-nums">
                           {Math.round(budget.percent * 100)}% used
                         </div>
                       </div>
