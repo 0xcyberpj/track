@@ -17,6 +17,24 @@ import { Calendar as CalendarIcon } from 'lucide-react';
 
 const formatAmount = (amount: number) => amount.toLocaleString('en-IN', { minimumFractionDigits: 2 });
 
+const exportToCSV = (expenses: any[], categories: any[], accounts: any[], monthLabel: string) => {
+  const header = 'Date,Title,Amount,Category,Account,Description';
+  const rows = expenses.map(e => {
+    const cat = categories.find(c => c.id === e.category_id);
+    const acc = accounts.find(a => a.id === e.account_id);
+    const escape = (s: string) => `"${(s || '').replace(/"/g, '""')}"`;
+    return `${e.date},${escape(e.title)},${e.amount},${escape(cat?.name || '')},${escape(acc?.account_name || '')},${escape(e.description || '')}`;
+  });
+  const csv = [header, ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `expenses-${monthLabel}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
 const formatDayHeader = (dayStr: string) => {
   const date = new Date(dayStr);
   if (isToday(date)) return 'Today';
@@ -326,7 +344,7 @@ export const Dashboard = () => {
                 </SelectContent>
               </Select>
             </div>
-            <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl" aria-label="Export">
+            <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl" aria-label="Export" onClick={() => exportToCSV(safeExpenses, categories, accounts, selectedMonth)}>
               <Download className="h-4 w-4" />
             </Button>
           </div>
@@ -515,7 +533,7 @@ export const Dashboard = () => {
           <Card className="glass rounded-2xl border-0 shadow-card animate-slide-up">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-lg font-semibold text-foreground">Statistics</CardTitle>
-              <Button variant="ghost" size="sm" className="gap-1.5 h-8 text-xs text-muted-foreground hover:text-foreground rounded-lg">
+              <Button variant="ghost" size="sm" className="gap-1.5 h-8 text-xs text-muted-foreground hover:text-foreground rounded-lg" onClick={() => exportToCSV(safeExpenses, categories, accounts, selectedMonth)}>
                 <Download className="h-3.5 w-3.5" /> Export
               </Button>
             </CardHeader>
