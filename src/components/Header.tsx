@@ -1,16 +1,18 @@
 import { Button } from "@/components/ui/button";
-import { BarChart3, Plus, LogOut, Wallet, PieChart, MoreHorizontal } from "lucide-react";
+import { BarChart3, Plus, LogOut, Wallet, PieChart, MoreHorizontal, Sun, Moon } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
+import { useTheme } from "@/hooks/useTheme";
 
 export const Header = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   const handleSignOut = async () => {
     await signOut();
@@ -34,7 +36,7 @@ export const Header = () => {
   return (
     <>
       {/* Desktop header - true black */}
-      <header className="hidden md:block sticky top-0 z-50 w-full" style={{ background: 'hsl(0 0% 2% / 0.95)', backdropFilter: 'blur(20px)', borderBottom: '1px solid hsl(0 0% 8%)' }}>
+      <header className="hidden md:block sticky top-0 z-50 w-full" style={{ background: 'hsl(var(--background) / 0.95)', backdropFilter: 'blur(20px)', borderBottom: '1px solid hsl(var(--border))' }}>
         <div className="container mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="p-1.5 rounded-lg bg-primary-gradient">
@@ -61,6 +63,13 @@ export const Header = () => {
             })}
           </nav>
           <div className="flex items-center gap-3">
+            <button
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-all"
+              onClick={toggleTheme}
+              aria-label="Toggle theme"
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
             <div className="hidden lg:flex items-center gap-2">
               <Avatar className="h-7 w-7 ring-1 ring-border">
                 <AvatarFallback className="bg-muted text-foreground text-xs font-semibold">
@@ -86,7 +95,7 @@ export const Header = () => {
       <Sheet>
         <nav
           className="md:hidden fixed bottom-0 left-0 right-0 flex justify-around items-center py-1 pb-safe z-50"
-          style={{ background: 'hsl(0 0% 2% / 0.97)', backdropFilter: 'blur(20px)', borderTop: '1px solid hsl(0 0% 8%)', height: '58px', pointerEvents: 'auto' }}
+          style={{ background: 'hsl(var(--background) / 0.97)', backdropFilter: 'blur(20px)', borderTop: '1px solid hsl(var(--border))', height: '58px', pointerEvents: 'auto' }}
         >
           {[
             { path: '/', icon: BarChart3, label: 'Dashboard' },
@@ -113,9 +122,9 @@ export const Header = () => {
             </SheetTrigger>
           </div>
         </nav>
-        <SheetContent side="right" className="w-64 p-0 border-l-0" style={{ background: 'hsl(0 0% 3%)' }}>
+        <SheetContent side="right" className="w-64 p-0 border-l-0" style={{ background: 'hsl(var(--card))' }}>
           <div className="flex flex-col h-full">
-            <div className="p-5 border-b" style={{ borderColor: 'hsl(0 0% 8%)' }}>
+            <div className="p-5 border-b" style={{ borderColor: 'hsl(var(--border))' }}>
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10 ring-1 ring-border">
                   <AvatarFallback className="bg-muted text-foreground font-semibold">
@@ -150,7 +159,14 @@ export const Header = () => {
                 })}
               </nav>
             </div>
-            <div className="p-4 border-t" style={{ borderColor: 'hsl(0 0% 8%)' }}>
+            <div className="p-4 space-y-2 border-t" style={{ borderColor: 'hsl(var(--border))' }}>
+              <button
+                className="w-full flex items-center gap-3 h-11 px-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-all"
+                onClick={toggleTheme}
+              >
+                {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+                {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+              </button>
               <button
                 className="w-full flex items-center justify-center gap-2 h-11 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-all"
                 onClick={handleSignOut}
