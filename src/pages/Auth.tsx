@@ -1,15 +1,21 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, Eye, EyeOff, BarChart3, Mail, Lock, User, ArrowRight } from 'lucide-react';
+import { Loader2, Eye, EyeOff, BarChart3, Mail, Lock, User, ArrowRight, KeyRound, AtSign } from 'lucide-react';
+
+type Tab = 'signin' | 'otp' | 'signup' | 'reset';
 
 const Auth = () => {
-  const { user, signIn, signUp, resetPassword } = useAuth();
+  const { user, signIn, signUp, signInWithOtp, verifyOtp, resetPassword } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [tab, setTab] = useState<'signin' | 'signup' | 'reset'>('signin');
+  const [tab, setTab] = useState<Tab>('signin');
+  const [otpStep, setOtpStep] = useState<'email' | 'code'>('email');
+  const [otpCode, setOtpCode] = useState(['', '', '', '', '']);
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [formData, setFormData] = useState({
+    identifier: '',
     email: '',
     password: '',
     username: '',
@@ -28,7 +34,7 @@ const Auth = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await signIn(formData.email, formData.password);
+    const { error } = await signIn(formData.identifier, formData.password);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
@@ -56,6 +62,71 @@ const Auth = () => {
     setLoading(false);
   };
 
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.email) {
+      toast({ title: "Error", description: "Please enter your email address", variant: "destructive" });
+      return;
+    }
+    setLoading(true);
+    const { error } = await signInWithOtp(formData.email);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      setOtpStep('code');
+      setOtpCode(['', '', '', '', '']);
+      toast({ title: "Code sent!", description: "Check your email for the 5-digit code." });
+    }
+    setLoading(false);
+  };
+
+  const handleOtpInput = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return;
+    const newCode = [...otpCode];
+    newCode[index] = value.slice(-1);
+    setOtpCode(newCode);
+
+    // Auto-focus next input
+    if (value && index < 4) {
+      otpRefs.current[index + 1]?.focus();
+    }
+
+    // Auto-submit when all digits entered
+    if (newCode.every(d => d !== '') && newCode.join('').length === 5) {
+      handleVerifyOtp(newCode.join(''));
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !otpCode[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 5);
+    if (pasted.length === 5) {
+      const newCode = pasted.split('');
+      setOtpCode(newCode);
+      otpRefs.current[4]?.focus();
+      handleVerifyOtp(pasted);
+    }
+  };
+
+  const handleVerifyOtp = async (code: string) => {
+    setLoading(true);
+    const { error } = await verifyOtp(formData.email, code);
+    if (error) {
+      toast({ title: "Invalid code", description: "The code you entered is incorrect. Please try again.", variant: "destructive" });
+      setOtpCode(['', '', '', '', '']);
+      otpRefs.current[0]?.focus();
+    } else {
+      toast({ title: "Welcome!", description: "You have successfully signed in." });
+    }
+    setLoading(false);
+  };
+
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.email) {
@@ -71,6 +142,8 @@ const Auth = () => {
     }
     setLoading(false);
   };
+
+  const tabs: [Tab, string][] = [['signin', 'Password'], ['otp', 'OTP Code'], ['signup', 'Sign Up'], ['reset', 'Reset']];
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
@@ -88,7 +161,8 @@ const Auth = () => {
           </div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Just Tracker</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {tab === 'signin' && 'Welcome back — sign in to continue'}
+            {tab === 'signin' && 'Sign in with email or username'}
+            {tab === 'otp' && (otpStep === 'email' ? 'Get a one-time code to sign in' : 'Enter the code sent to your email')}
             {tab === 'signup' && 'Create your account to get started'}
             {tab === 'reset' && 'Reset your password'}
           </p>
@@ -98,11 +172,11 @@ const Auth = () => {
         <div className="glass rounded-2xl border border-border/50 shadow-card overflow-hidden">
           {/* Tab switcher */}
           <div className="flex border-b border-border/50">
-            {([['signin', 'Sign In'], ['signup', 'Sign Up'], ['reset', 'Reset']] as const).map(([id, label]) => (
+            {tabs.map(([id, label]) => (
               <button
                 key={id}
-                onClick={() => setTab(id)}
-                className={`flex-1 py-3 text-sm font-medium transition-all relative ${
+                onClick={() => { setTab(id); if (id === 'otp') setOtpStep('email'); }}
+                className={`flex-1 py-3 text-xs sm:text-sm font-medium transition-all relative ${
                   tab === id
                     ? 'text-primary'
                     : 'text-muted-foreground hover:text-foreground'
@@ -110,23 +184,23 @@ const Auth = () => {
               >
                 {label}
                 {tab === id && (
-                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 rounded-full bg-primary" />
+                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-0.5 rounded-full bg-primary" />
                 )}
               </button>
             ))}
           </div>
 
           <div className="p-6">
-            {/* Sign In */}
+            {/* Sign In with Password */}
             {tab === 'signin' && (
               <form onSubmit={handleSignIn} className="space-y-4 animate-fade-in">
                 <InputField
-                  icon={<Mail className="h-4 w-4" />}
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="Email address"
-                  value={formData.email}
+                  icon={<AtSign className="h-4 w-4" />}
+                  id="identifier"
+                  name="identifier"
+                  type="text"
+                  placeholder="Email or username"
+                  value={formData.identifier}
                   onChange={handleInputChange}
                 />
                 <InputField
@@ -143,13 +217,23 @@ const Auth = () => {
                     </button>
                   }
                 />
-                <button
-                  type="button"
-                  onClick={() => setTab('reset')}
-                  className="text-xs text-primary hover:text-primary/80 transition-colors font-medium"
-                >
-                  Forgot password?
-                </button>
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setTab('reset')}
+                    className="text-xs text-primary hover:text-primary/80 transition-colors font-medium"
+                  >
+                    Forgot password?
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTab('otp')}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                  >
+                    <KeyRound className="h-3 w-3" />
+                    Use OTP instead
+                  </button>
+                </div>
                 <SubmitButton loading={loading} label="Sign In" />
                 <p className="text-center text-xs text-muted-foreground pt-2">
                   Don't have an account?{' '}
@@ -158,6 +242,86 @@ const Auth = () => {
                   </button>
                 </p>
               </form>
+            )}
+
+            {/* OTP Sign In */}
+            {tab === 'otp' && (
+              <div className="animate-fade-in">
+                {otpStep === 'email' ? (
+                  <form onSubmit={handleSendOtp} className="space-y-4">
+                    <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 mx-auto mb-2">
+                      <KeyRound className="h-6 w-6 text-primary" />
+                    </div>
+                    <p className="text-sm text-muted-foreground text-center">
+                      We'll send a 5-digit code to your email for passwordless sign in.
+                    </p>
+                    <InputField
+                      icon={<Mail className="h-4 w-4" />}
+                      id="otp-email"
+                      name="email"
+                      type="email"
+                      placeholder="Email address"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                    />
+                    <SubmitButton loading={loading} label="Send Code" />
+                  </form>
+                ) : (
+                  <div className="space-y-5">
+                    <div className="text-center">
+                      <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 mx-auto mb-3">
+                        <Mail className="h-6 w-6 text-primary" />
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Code sent to <span className="text-foreground font-medium">{formData.email}</span>
+                      </p>
+                    </div>
+
+                    {/* OTP Input Boxes */}
+                    <div className="flex justify-center gap-2.5">
+                      {otpCode.map((digit, i) => (
+                        <input
+                          key={i}
+                          ref={el => { otpRefs.current[i] = el; }}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={1}
+                          value={digit}
+                          onChange={e => handleOtpInput(i, e.target.value)}
+                          onKeyDown={e => handleOtpKeyDown(i, e)}
+                          onPaste={i === 0 ? handleOtpPaste : undefined}
+                          className="w-12 h-14 text-center text-xl font-bold rounded-xl bg-muted/50 border border-border/50 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all"
+                          autoFocus={i === 0}
+                        />
+                      ))}
+                    </div>
+
+                    {loading && (
+                      <div className="flex justify-center">
+                        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
+                      Didn't receive it?{' '}
+                      <button
+                        type="button"
+                        onClick={() => { setOtpStep('email'); setOtpCode(['', '', '', '', '']); }}
+                        className="text-primary font-medium hover:text-primary/80 transition-colors"
+                      >
+                        Resend code
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <p className="text-center text-xs text-muted-foreground pt-4">
+                  Prefer a password?{' '}
+                  <button type="button" onClick={() => setTab('signin')} className="text-primary font-medium hover:text-primary/80 transition-colors">
+                    Sign in with password
+                  </button>
+                </p>
+              </div>
             )}
 
             {/* Sign Up */}
@@ -173,7 +337,7 @@ const Auth = () => {
                   onChange={handleInputChange}
                 />
                 <InputField
-                  icon={<User className="h-4 w-4" />}
+                  icon={<AtSign className="h-4 w-4" />}
                   id="username"
                   name="username"
                   type="text"
