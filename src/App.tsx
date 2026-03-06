@@ -11,6 +11,8 @@ import AddExpense from "./pages/AddExpense";
 import Accounts from "./pages/Accounts";
 import NotFound from "./pages/NotFound";
 import Insights from "./pages/Insights";
+import Settings from "./pages/Settings";
+import { ThemeProvider } from "@/hooks/useTheme";
 import { useFinanceData } from "@/hooks/useFinanceData";
 import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -27,13 +29,15 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AppWithFinanceData />
-        </BrowserRouter>
-      </TooltipProvider>
+      <ThemeProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AppWithFinanceData />
+          </BrowserRouter>
+        </TooltipProvider>
+      </ThemeProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
@@ -223,6 +227,11 @@ function AppWithFinanceData() {
         <Route path="/insights" element={
           <ProtectedRoute>
             <Insights />
+          </ProtectedRoute>
+        } />
+        <Route path="/settings" element={
+          <ProtectedRoute>
+            <Settings />
           </ProtectedRoute>
         } />
         <Route path="*" element={<NotFound />} />
