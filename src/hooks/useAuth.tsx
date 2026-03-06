@@ -8,8 +8,6 @@ interface AuthContextType {
   loading: boolean;
   signUp: (email: string, password: string, userData: { username: string; full_name: string }) => Promise<{ error: any }>;
   signIn: (identifier: string, password: string) => Promise<{ error: any }>;
-  signInWithOtp: (email: string) => Promise<{ error: any }>;
-  verifyOtp: (email: string, token: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: any }>;
 }
@@ -22,7 +20,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
@@ -31,7 +28,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -54,12 +50,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const resolveEmail = async (identifier: string): Promise<{ email: string | null; error: any }> => {
-    // If it looks like an email, use it directly
     if (identifier.includes('@')) {
       return { email: identifier, error: null };
     }
 
-    // Try to resolve username → email via profiles table lookup
+    // Resolve username → user_id → email via profiles
     const { data: profile, error: lookupError } = await supabase
       .from('profiles')
       .select('user_id')
@@ -67,15 +62,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       .maybeSingle();
 
     if (lookupError || !profile) {
-      return { email: null, error: { message: 'No account found with that username. Try using your email address.' } };
+      return { email: null, error: { message: 'No account found with that username.' } };
     }
 
-    // Try RPC to get email by user_id (requires a DB function: get_email_by_user_id)
+    // Try RPC to get email (requires DB function: get_email_by_user_id)
     const { data: emailData, error: rpcError } = await supabase
       .rpc('get_email_by_user_id', { uid: profile.user_id }) as { data: string | null; error: any };
 
     if (rpcError || !emailData) {
-      return { email: null, error: { message: 'Username login is not yet configured. Please use your email address.' } };
+      return { email: null, error: { message: 'Username login is not fully configured. Please use your email address.' } };
     }
 
     return { email: emailData, error: null };
@@ -85,29 +80,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { email, error: resolveError } = await resolveEmail(identifier);
     if (resolveError || !email) return { error: resolveError };
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    return { error };
-  };
-
-  const signInWithOtp = async (email: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        shouldCreateUser: false,
-      }
-    });
-    return { error };
-  };
-
-  const verifyOtp = async (email: string, token: string) => {
-    const { error } = await supabase.auth.verifyOtp({
-      email,
-      token,
-      type: 'email'
-    });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error };
   };
 
@@ -128,8 +101,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     loading,
     signUp,
     signIn,
-    signInWithOtp,
-    verifyOtp,
     signOut,
     resetPassword
   };
