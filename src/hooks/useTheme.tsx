@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, createContext, useContext } from 'react';
 
-export type ThemeId = 'dark-emerald' | 'dark-ocean' | 'dark-violet' | 'light-emerald' | 'light-slate' | 'light-rose';
+export type ThemeId = 'dark-emerald' | 'dark-ocean' | 'dark-violet' | 'dark-amber' | 'light-emerald' | 'light-slate' | 'light-rose' | 'light-mint';
 
 export interface ThemeOption {
   id: ThemeId;
@@ -14,9 +14,11 @@ export const THEMES: ThemeOption[] = [
   { id: 'dark-emerald',  name: 'Emerald Night',  mode: 'dark',  accent: '#1a9d5c', background: '#050505' },
   { id: 'dark-ocean',    name: 'Ocean Depth',    mode: 'dark',  accent: '#2b7fff', background: '#070a12' },
   { id: 'dark-violet',   name: 'Violet Aura',    mode: 'dark',  accent: '#8b5cf6', background: '#0a0710' },
+  { id: 'dark-amber',    name: 'Amber Glow',     mode: 'dark',  accent: '#f59e0b', background: '#0a0806' },
   { id: 'light-emerald', name: 'Emerald Fresh',  mode: 'light', accent: '#1a9d5c', background: '#f5f7f5' },
   { id: 'light-slate',   name: 'Slate Pro',      mode: 'light', accent: '#2563eb', background: '#f1f3f8' },
   { id: 'light-rose',    name: 'Rose Warm',      mode: 'light', accent: '#e11d48', background: '#f9f5f3' },
+  { id: 'light-mint',    name: 'Mint Fresh',     mode: 'light', accent: '#0d9488', background: '#f3f8f7' },
 ];
 
 const STORAGE_KEY = 'app-theme';

@@ -241,24 +241,34 @@ const Accounts = () => {
     );
   }
 
+  // Savings goal calculation
+  const monthlyChange = accountTransactions
+    .filter(t => {
+      const d = new Date(t.created_at);
+      const now = new Date();
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    })
+    .reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0);
+
+  const totalTransactions = accountTransactions.length;
+
   return (
     <>
       <Header />
-      {/* Add space below header on mobile */}
-      <div className="block sm:hidden mb-4" />
+      <div className="block sm:hidden mb-2" />
       <FloatingAddExpenseButton />
-      <div className="container mx-auto px-3 py-4 space-y-6 max-w-7xl pt-safe sm:mt-0">
+      <div className="container mx-auto px-3 py-4 space-y-5 max-w-7xl pt-safe sm:mt-0 pb-24 sm:pb-8">
         {/* Header */}
-        <div className="flex top-20 flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl  sm:text-2xl font-bold">Savings Accounts</h1>
-            <p className="text-muted-foreground text-sm sm:text-base">Manage your accounts and balances</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 animate-fade-in">
+          <div className="px-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">Savings</h1>
+            <p className="text-muted-foreground text-sm mt-0.5">Manage accounts and track your wealth</p>
           </div>
           <div className="flex gap-2">
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="w-full sm:w-auto">
-                  <Plus className="h-4 w-4 mr-2" />
+                <Button className="rounded-xl gap-1.5">
+                  <Plus className="h-4 w-4" />
                   Add Account
                 </Button>
               </DialogTrigger>
@@ -318,136 +328,135 @@ const Accounts = () => {
           </div>
         </div>
 
-        {/* Total Balance Overview */}
-        <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-          <CardContent className="pt-4 sm:pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Balance</p>
-                <p className="text-2xl sm:text-3xl font-bold text-primary">₹{formatAmount(totalBalance)}</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {accounts.length} account{accounts.length !== 1 ? 's' : ''}
-                </p>
+        {/* Overview Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 animate-slide-up">
+          <Card className="glass rounded-2xl border-0 shadow-card glow-primary sm:col-span-2">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[11px] text-muted-foreground uppercase tracking-widest mb-1">Net Worth</p>
+                  <p className="text-3xl sm:text-4xl font-bold text-primary tabular-nums">₹{formatAmount(totalBalance)}</p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {accounts.length} account{accounts.length !== 1 ? 's' : ''} &middot; {totalTransactions} transactions
+                  </p>
+                </div>
+                <div className="h-14 w-14 bg-primary/10 rounded-2xl flex items-center justify-center">
+                  <Wallet className="h-7 w-7 text-primary" />
+                </div>
               </div>
-              <div className="h-12 w-12 sm:h-16 sm:w-16 bg-primary/10 rounded-full flex items-center justify-center">
-                <Wallet className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+          <Card className="glass rounded-2xl border-0 shadow-card">
+            <CardContent className="p-5">
+              <p className="text-[11px] text-muted-foreground uppercase tracking-widest mb-1">This Month</p>
+              <p className={`text-2xl font-bold tabular-nums ${monthlyChange >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
+                {monthlyChange >= 0 ? '+' : '-'}₹{formatAmount(Math.abs(monthlyChange))}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">{monthlyChange >= 0 ? 'Net added' : 'Net spent'}</p>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Accounts Grid */}
         {accounts.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-            {accounts.map((account, index) => (
-              <Card 
-                key={account.id} 
-                className="hover:shadow-lg transition-all duration-300 animate-fade-in"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base sm:text-lg truncate pr-2">{account.account_name}</CardTitle>
-                    <div className="h-8 w-8 sm:h-10 sm:w-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                      <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl sm:text-2xl font-bold text-primary">
-                        ₹{formatAmount(account.balance)}
-                      </span>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {accounts.map((account, index) => {
+              const acctTxns = accountTransactions.filter(t => t.account_id === account.id);
+              const recentTxns = acctTxns.slice(0, 4);
+              return (
+                <Card
+                  key={account.id}
+                  className="glass rounded-2xl border-0 shadow-card hover:shadow-elegant transition-all duration-300 animate-slide-up overflow-hidden"
+                  style={{ animationDelay: `${index * 80}ms` }}
+                >
+                  <CardContent className="p-5 space-y-4">
+                    {/* Account header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                          <DollarSign className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-foreground truncate">{account.account_name}</h3>
+                          <p className="text-[11px] text-muted-foreground">Created {new Date(account.created_at).toLocaleDateString()}</p>
+                        </div>
+                      </div>
                       <button
-                        className="ml-2 p-1 rounded hover:bg-muted/30 focus:outline-none"
-                        title="Edit Balance"
+                        className="p-2 rounded-lg hover:bg-muted/40 transition-colors"
                         onClick={() => openEditModal(account)}
                       >
-                        <Pencil className="h-4 w-4 text-muted-foreground" />
+                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                       </button>
                     </div>
-                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                      Created {new Date(account.created_at).toLocaleDateString()}
-                    </p>
-                    
-                    {/* Account Actions */}
-                    <div className="space-y-2">
-                      <div className="grid grid-cols-2 gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="gap-1 text-xs sm:text-sm"
-                          onClick={() => openTransactionDialog(account, 'add')}
-                        >
-                          <ArrowUpRight className="h-3 w-3 sm:h-4 sm:w-4" />
-                          <span className="hidden sm:inline">Add Income</span>
-                          <span className="sm:hidden">➕</span>
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="gap-1 text-xs sm:text-sm"
-                          onClick={() => openTransactionDialog(account, 'deduct')}
-                        >
-                          <ArrowDownLeft className="h-3 w-3 sm:h-4 sm:w-4" />
-                          <span className="hidden sm:inline">Deduct Amount</span>
-                          <span className="sm:hidden">➖</span>
-                        </Button>
-                      </div>
-                      <Button 
-                        variant="default" 
-                        size="sm" 
-                        className="w-full text-xs sm:text-sm"
+
+                    {/* Balance */}
+                    <div className="rounded-xl bg-secondary/40 p-4">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-1">Balance</p>
+                      <p className="text-2xl font-bold text-primary tabular-nums">₹{formatAmount(account.balance)}</p>
+                    </div>
+
+                    {/* Quick actions */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        className="flex flex-col items-center gap-1 py-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors"
+                        onClick={() => openTransactionDialog(account, 'add')}
+                      >
+                        <ArrowUpRight className="h-4 w-4 text-emerald-500" />
+                        <span className="text-[10px] font-medium text-emerald-500">Add</span>
+                      </button>
+                      <button
+                        className="flex flex-col items-center gap-1 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 transition-colors"
+                        onClick={() => openTransactionDialog(account, 'deduct')}
+                      >
+                        <ArrowDownLeft className="h-4 w-4 text-red-400" />
+                        <span className="text-[10px] font-medium text-red-400">Deduct</span>
+                      </button>
+                      <button
+                        className="flex flex-col items-center gap-1 py-2.5 rounded-xl bg-primary/10 hover:bg-primary/20 transition-colors"
                         onClick={() => navigate('/add-expense', { state: { selectedAccount: account.id } })}
                       >
-                        Add Expense
-                      </Button>
-                     </div>
-                     
-                     {/* Dashboard Visibility Toggle */}
-                     <div className="flex items-center justify-between py-2 border-t">
-                       <span className="text-xs text-muted-foreground">Show in Dashboard</span>
-                       <button
-                         onClick={() => toggleAccountDashboardVisibility(account.id, !account.include_in_dashboard)}
-                         className="flex items-center gap-1 text-xs px-2 py-1 rounded hover:bg-muted/30 transition-colors"
-                       >
-                         {account.include_in_dashboard !== false ? (
-                           <>
-                             <Eye className="h-3 w-3 text-green-500" />
-                             <span className="text-green-500">Visible</span>
-                           </>
-                         ) : (
-                           <>
-                             <EyeOff className="h-3 w-3 text-muted-foreground" />
-                             <span className="text-muted-foreground">Hidden</span>
-                           </>
-                         )}
-                       </button>
-                     </div>
-                     
-                     {/* Transaction Log */}
-                     <div className="mt-4">
-                      <div className="font-semibold text-sm mb-2">Recent Transactions</div>
-                      <ul className="space-y-1">
-                        {accountTransactions.filter(t => t.account_id === account.id).slice(0, 5).map(txn => (
-                          <li key={txn.id} className="flex items-center justify-between text-xs bg-muted/30 rounded px-2 py-1">
-                            <span className={txn.type === 'income' ? 'text-green-500' : 'text-red-500'}>
-                              {txn.type === 'income' ? '➕' : '➖'} ₹{formatAmount(txn.amount)}
-                            </span>
-                            <span className="text-muted-foreground ml-2">{txn.description || (txn.type === 'income' ? 'Deposit' : 'Withdrawal')}</span>
-                            <span className="ml-auto text-muted-foreground">{new Date(txn.created_at).toLocaleDateString()}</span>
-                          </li>
-                        ))}
-                        {accountTransactions.filter(t => t.account_id === account.id).length === 0 && (
-                          <li className="text-muted-foreground text-xs">No transactions yet.</li>
-                        )}
-                      </ul>
+                        <Plus className="h-4 w-4 text-primary" />
+                        <span className="text-[10px] font-medium text-primary">Expense</span>
+                      </button>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+
+                    {/* Dashboard visibility */}
+                    <div className="flex items-center justify-between py-2 border-t border-border">
+                      <span className="text-xs text-muted-foreground">Dashboard</span>
+                      <button
+                        onClick={() => toggleAccountDashboardVisibility(account.id, !account.include_in_dashboard)}
+                        className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg transition-colors ${account.include_in_dashboard !== false ? 'bg-emerald-500/10 text-emerald-500' : 'bg-muted/40 text-muted-foreground'}`}
+                      >
+                        {account.include_in_dashboard !== false ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                        {account.include_in_dashboard !== false ? 'Visible' : 'Hidden'}
+                      </button>
+                    </div>
+
+                    {/* Transaction Log */}
+                    <div>
+                      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Recent</div>
+                      {recentTxns.length === 0 ? (
+                        <p className="text-xs text-muted-foreground/60 py-3 text-center">No transactions yet</p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {recentTxns.map(txn => (
+                            <div key={txn.id} className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-secondary/30">
+                              <div className="flex items-center gap-2">
+                                <div className={`w-1.5 h-1.5 rounded-full ${txn.type === 'income' ? 'bg-emerald-500' : 'bg-red-400'}`} />
+                                <span className="text-foreground font-medium truncate max-w-[100px]">{txn.description || (txn.type === 'income' ? 'Deposit' : 'Withdrawal')}</span>
+                              </div>
+                              <span className={`font-semibold tabular-nums ${txn.type === 'income' ? 'text-emerald-500' : 'text-red-400'}`}>
+                                {txn.type === 'income' ? '+' : '-'}₹{formatAmount(txn.amount)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         ) : (
           <Card>
