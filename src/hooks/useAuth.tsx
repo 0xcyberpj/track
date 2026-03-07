@@ -7,7 +7,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signUp: (email: string, password: string, userData: { username: string; full_name: string }) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signIn: (identifier: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: any }>;
 }
@@ -20,7 +20,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
@@ -29,7 +28,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -51,11 +49,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return { error };
   };
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
+  const resolveEmail = async (identifier: string): Promise<{ email: string | null; error: any }> => {
+    if (identifier.includes('@')) {
+      return { email: identifier, error: null };
+    }
+
+    // Resolve username → user_id → email via profiles
+    const { data: profile, error: lookupError } = await supabase
+      .from('profiles')
+      .select('user_id')
+      .eq('username', identifier)
+      .maybeSingle();
+
+    if (lookupError || !profile) {
+      return { email: null, error: { message: 'No account found with that username.' } };
+    }
+
+    // Try RPC to get email (requires DB function: get_email_by_user_id)
+    const { data: emailData, error: rpcError } = await supabase
+      .rpc('get_email_by_user_id', { uid: profile.user_id }) as { data: string | null; error: any };
+
+    if (rpcError || !emailData) {
+      return { email: null, error: { message: 'Username login is not fully configured. Please use your email address.' } };
+    }
+
+    return { email: emailData, error: null };
+  };
+
+  const signIn = async (identifier: string, password: string) => {
+    const { email, error: resolveError } = await resolveEmail(identifier);
+    if (resolveError || !email) return { error: resolveError };
+
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error };
   };
 
