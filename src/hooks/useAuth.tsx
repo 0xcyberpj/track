@@ -50,11 +50,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const resolveEmail = async (identifier: string): Promise<{ email: string | null; error: any }> => {
+    // If it's already an email, return it directly
     if (identifier.includes('@')) {
       return { email: identifier, error: null };
     }
 
-    // Resolve username → user_id → email via profiles
+    // Resolve username → user_id → email
     const { data: profile, error: lookupError } = await supabase
       .from('profiles')
       .select('user_id')
@@ -65,12 +66,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return { email: null, error: { message: 'No account found with that username.' } };
     }
 
-    // Try RPC to get email (requires DB function: get_email_by_user_id)
     const { data: emailData, error: rpcError } = await supabase
       .rpc('get_email_by_user_id', { uid: profile.user_id }) as { data: string | null; error: any };
 
     if (rpcError || !emailData) {
-      return { email: null, error: { message: 'Username login is not fully configured. Please use your email address.' } };
+      return { email: null, error: { message: 'Could not resolve username. Please use your email address.' } };
     }
 
     return { email: emailData, error: null };

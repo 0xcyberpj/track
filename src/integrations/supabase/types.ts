@@ -238,12 +238,60 @@ export type Database = {
           }
         ]
       },
+      monthly_plans: {
+        Row: {
+          id: string
+          user_id: string
+          month: string
+          income: number
+          income_label: string | null
+          allocations: Json
+          balance_distribution: Json
+          trackers: Json
+          investments: Json
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          month: string
+          income?: number
+          income_label?: string | null
+          allocations?: Json
+          balance_distribution?: Json
+          trackers?: Json
+          investments?: Json
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          month?: string
+          income?: number
+          income_label?: string | null
+          allocations?: Json
+          balance_distribution?: Json
+          trackers?: Json
+          investments?: Json
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      },
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_email_by_user_id: {
+        Args: { uid: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

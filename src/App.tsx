@@ -12,6 +12,7 @@ import Accounts from "./pages/Accounts";
 import NotFound from "./pages/NotFound";
 import Insights from "./pages/Insights";
 import Settings from "./pages/Settings";
+import MonthlyPlan from "./pages/MonthlyPlan";
 import { ThemeProvider } from "@/hooks/useTheme";
 import { useFinanceData } from "@/hooks/useFinanceData";
 import { useState, useRef, useEffect } from "react";
@@ -227,6 +228,11 @@ function AppWithFinanceData() {
         <Route path="/insights" element={
           <ProtectedRoute>
             <Insights />
+          </ProtectedRoute>
+        } />
+        <Route path="/monthly-plan" element={
+          <ProtectedRoute>
+            <MonthlyPlan />
           </ProtectedRoute>
         } />
         <Route path="/settings" element={
