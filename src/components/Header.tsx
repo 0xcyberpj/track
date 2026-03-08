@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { BarChart3, Plus, LogOut, Wallet, PieChart, MoreHorizontal, Sun, Moon, Settings } from "lucide-react";
+import { BarChart3, Plus, LogOut, Wallet, PieChart, MoreHorizontal, Sun, Moon, Settings, CalendarDays } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
@@ -25,7 +25,8 @@ export const Header = () => {
     { path: '/', label: 'Dashboard', icon: BarChart3 },
     { path: '/accounts', label: 'Savings', icon: Wallet },
     { path: '/add-expense', label: 'Add Expense', icon: Plus },
-    { path: '/insights', label: 'Insights', icon: PieChart }
+    { path: '/insights', label: 'Insights', icon: PieChart },
+    { path: '/monthly-plan', label: 'Plan', icon: CalendarDays }
   ];
 
   const handleNavigation = (path: string) => {
@@ -150,7 +151,7 @@ export const Header = () => {
             </div>
             <div className="flex-1 p-4">
               <nav className="space-y-1">
-                {[...navigationItems, { path: '/settings', label: 'Settings', icon: Settings }].map((item) => {
+                {[...navigationItems, { path: '/settings', label: 'Settings', icon: Settings }].filter(i => i.path !== '/add-expense').map((item) => {
                   const IconComponent = item.icon;
                   const active = isActive(item.path);
                   return (
