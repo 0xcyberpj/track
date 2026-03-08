@@ -62,7 +62,7 @@ export const Dashboard = () => {
   const [budgetModalOpen, setBudgetModalOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState(null);
   const [budgetForm, setBudgetForm] = useState({
-    name: '', amount: '', period: 'monthly', start_date: '', end_date: '', category_id: ''
+    name: '', amount: '', period: 'monthly', start_date: format(startOfMonth(new Date()), 'yyyy-MM-dd'), end_date: format(endOfMonth(new Date()), 'yyyy-MM-dd'), category_id: ''
   });
 
   const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM'));
