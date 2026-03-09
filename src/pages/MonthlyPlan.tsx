@@ -59,7 +59,7 @@ const MonthlyPlan = () => {
 
         {/* No plan yet */}
         {!plan ? (
-          <div className="glass rounded-2xl border border-border/50 p-8 sm:p-12 text-center">
+          <div className="rounded-2xl border border-border bg-card p-8 sm:p-12 text-center">
             <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
               <CalendarDays className="h-8 w-8 text-primary" />
             </div>
@@ -195,7 +195,7 @@ const MonthlyPlan = () => {
             </Section>
 
             {/* ─── Summary ─── */}
-            <div className="glass rounded-2xl border border-border/50 p-4 sm:p-5">
+            <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
               <h3 className="text-sm font-semibold text-foreground mb-3">Monthly Summary</h3>
               <div className="space-y-2 text-sm">
                 <SummaryRow label="Income" value={plan.income} color="text-green-500" />
@@ -242,7 +242,7 @@ function Section({
   icon: any; title: string; color: string; subtitle?: string; children: React.ReactNode;
 }) {
   return (
-    <div className="glass rounded-2xl border border-border/50 overflow-hidden">
+    <div className="rounded-2xl border border-border bg-card overflow-hidden">
       <div className="px-4 sm:px-5 pt-4 pb-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Icon className={`h-4 w-4 ${color}`} />
