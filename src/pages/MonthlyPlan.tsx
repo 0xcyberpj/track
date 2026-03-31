@@ -1,13 +1,13 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Header } from '@/components/Header';
-import { useMonthlyPlan, Tracker } from '@/hooks/useMonthlyPlan';
-import { toast } from '@/hooks/use-toast';
+import { useMonthlyPlan, Tracker, DEFAULT_BUDGETS } from '@/hooks/useMonthlyPlan';
+import { useFinanceData, Expense, ExpenseCategory } from '@/hooks/useFinanceData';
 import {
-  ChevronLeft, ChevronRight, Plus, Trash2, Check, X,
+  ChevronLeft, ChevronRight, Plus, Trash2, Check, X, Pencil,
   Loader2, CalendarDays, IndianRupee, TrendingUp, Wallet,
   Target, PiggyBank, StickyNote, Save
 } from 'lucide-react';
-import { format, addMonths, subMonths, startOfMonth } from 'date-fns';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, parseISO } from 'date-fns';
 
 const MonthlyPlan = () => {
   const [selectedMonth, setSelectedMonth] = useState(() =>
@@ -16,17 +16,58 @@ const MonthlyPlan = () => {
 
   const {
     plan, loading, saving, createPlan, savePlan, savePlanDebounced, deletePlan,
-    addAllocation, toggleAllocation, removeAllocation,
-    addBalanceItem, removeBalanceItem,
-    addTracker, removeTracker, addTrackerEntry, removeTrackerEntry,
-    addInvestment, removeInvestment,
+    addAllocation, editAllocation, toggleAllocation, removeAllocation,
+    addBalanceItem, editBalanceItem, removeBalanceItem,
+    addTracker, editTracker, removeTracker,
+    addInvestment, editInvestment, removeInvestment,
     totalAllocations, totalBalance, totalBalanceDistributed,
-    totalTrackerBudgets, totalTrackerSpent, totalInvested,
+    totalTrackerBudgets, totalInvested,
   } = useMonthlyPlan(selectedMonth);
+
+  const { expenses, categories } = useFinanceData();
+
+  // Filter expenses for the selected month
+  const monthStart = startOfMonth(new Date(selectedMonth));
+  const monthEnd = endOfMonth(new Date(selectedMonth));
+
+  const monthExpenses = useMemo(() =>
+    expenses.filter(e => {
+      const d = parseISO(e.date);
+      return d >= monthStart && d <= monthEnd;
+    }),
+    [expenses, selectedMonth]
+  );
+
+  // Group expenses by category_id → { [category_id]: Expense[] }
+  const expensesByCategory = useMemo(() => {
+    const map: Record<string, Expense[]> = {};
+    monthExpenses.forEach(e => {
+      if (!map[e.category_id]) map[e.category_id] = [];
+      map[e.category_id].push(e);
+    });
+    return map;
+  }, [monthExpenses]);
+
+  // Total spent across all trackers (from real expenses)
+  const totalTrackerSpent = useMemo(() => {
+    if (!plan) return 0;
+    return plan.trackers.reduce((sum, t) => {
+      if (!t.category_id) return sum;
+      const catExpenses = expensesByCategory[t.category_id] || [];
+      return sum + catExpenses.reduce((s, e) => s + e.amount, 0);
+    }, 0);
+  }, [plan?.trackers, expensesByCategory]);
 
   const prevMonth = () => setSelectedMonth(format(subMonths(new Date(selectedMonth), 1), 'yyyy-MM-dd'));
   const nextMonth = () => setSelectedMonth(format(addMonths(new Date(selectedMonth), 1), 'yyyy-MM-dd'));
   const monthLabel = format(new Date(selectedMonth), 'MMMM yyyy');
+
+  // Categories not yet added as trackers
+  const availableCategories = useMemo(() => {
+    if (!plan) return categories;
+    const usedIds = new Set(plan.trackers.map(t => t.category_id).filter(Boolean));
+    return categories.filter(c => !usedIds.has(c.id));
+  }, [categories, plan?.trackers]);
 
   if (loading) {
     return (
@@ -106,13 +147,13 @@ const MonthlyPlan = () => {
               <AllocationList
                 allocations={plan.allocations}
                 onToggle={toggleAllocation}
+                onEdit={editAllocation}
                 onRemove={removeAllocation}
               />
               <AddItemRow
                 placeholder="Allocation name"
                 onAdd={(title, amount) => addAllocation(title, amount)}
               />
-              {/* Remaining after allocations */}
               <div className="pt-3 mt-3 border-t border-border/30 flex justify-between text-sm">
                 <span className="text-muted-foreground">Remaining Balance</span>
                 <span className={`font-bold ${totalBalance >= 0 ? 'text-green-500' : 'text-red-500'}`}>
@@ -126,15 +167,13 @@ const MonthlyPlan = () => {
               subtitle={`₹${totalBalanceDistributed.toLocaleString('en-IN')} distributed`}
             >
               {plan.balance_distribution.map(b => (
-                <div key={b.id} className="flex items-center justify-between py-1.5 group">
-                  <span className="text-sm text-foreground">{b.account}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-foreground">₹{b.amount.toLocaleString('en-IN')}</span>
-                    <button onClick={() => removeBalanceItem(b.id)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-500 transition-all p-0.5">
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
+                <EditableRow
+                  key={b.id}
+                  label={b.account}
+                  amount={b.amount}
+                  onSave={(label, amount) => editBalanceItem(b.id, { account: label, amount })}
+                  onRemove={() => removeBalanceItem(b.id)}
+                />
               ))}
               <AddItemRow
                 placeholder="Account name"
@@ -147,10 +186,12 @@ const MonthlyPlan = () => {
               trackers={plan.trackers}
               totalBudgets={totalTrackerBudgets}
               totalSpent={totalTrackerSpent}
-              onAddEntry={addTrackerEntry}
-              onRemoveEntry={removeTrackerEntry}
-              onRemoveTracker={removeTracker}
+              expensesByCategory={expensesByCategory}
+              categories={categories}
+              availableCategories={availableCategories}
               onAddTracker={addTracker}
+              onEditTracker={editTracker}
+              onRemoveTracker={removeTracker}
             />
 
             {/* ─── Investments ─── */}
@@ -158,18 +199,15 @@ const MonthlyPlan = () => {
               subtitle={`₹${totalInvested.toLocaleString('en-IN')} invested`}
             >
               {plan.investments.map(inv => (
-                <div key={inv.id} className="flex items-center justify-between py-1.5 group">
-                  <div className="min-w-0 flex-1">
-                    <span className="text-sm text-foreground">{inv.name}</span>
-                    {inv.description && <span className="text-xs text-muted-foreground ml-2">— {inv.description}</span>}
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-sm font-semibold text-emerald-500">₹{inv.amount.toLocaleString('en-IN')}</span>
-                    <button onClick={() => removeInvestment(inv.id)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-500 transition-all p-0.5">
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
+                <EditableRow
+                  key={inv.id}
+                  label={inv.name}
+                  amount={inv.amount}
+                  subtitle={inv.description}
+                  amountColor="text-emerald-500"
+                  onSave={(name, amount) => editInvestment(inv.id, { name, amount })}
+                  onRemove={() => removeInvestment(inv.id)}
+                />
               ))}
               <AddInvestmentRow onAdd={(name, amount, desc) => addInvestment(name, amount, desc)} />
             </Section>
@@ -225,23 +263,37 @@ const MonthlyPlan = () => {
 };
 
 /* ═══════════════════════════════════════════════
-   Spending Trackers with weekly/monthly toggle
+   Spending Trackers — pulls real expense data
    ═══════════════════════════════════════════════ */
 function SpendingTrackersSection({
-  trackers, totalBudgets, totalSpent,
-  onAddEntry, onRemoveEntry, onRemoveTracker, onAddTracker,
+  trackers, totalBudgets, totalSpent, expensesByCategory,
+  categories, availableCategories,
+  onAddTracker, onEditTracker, onRemoveTracker,
 }: {
   trackers: Tracker[];
   totalBudgets: number;
   totalSpent: number;
-  onAddEntry: (trackerId: string, date: string, desc: string, amount: number) => void;
-  onRemoveEntry: (trackerId: string, entryId: string) => void;
+  expensesByCategory: Record<string, Expense[]>;
+  categories: ExpenseCategory[];
+  availableCategories: ExpenseCategory[];
+  onAddTracker: (name: string, budget: number, categoryId?: string) => void;
+  onEditTracker: (id: string, updates: Partial<Omit<Tracker, 'id'>>) => void;
   onRemoveTracker: (id: string) => void;
-  onAddTracker: (name: string, budget: number) => void;
 }) {
   const [view, setView] = useState<'monthly' | 'weekly'>('monthly');
-  const divisor = view === 'weekly' ? 4 : 1;
-  const label = view === 'weekly' ? '/ week' : '/ month';
+  const [addingNew, setAddingNew] = useState(false);
+  const [newBudget, setNewBudget] = useState('');
+  const [selectedCatId, setSelectedCatId] = useState('');
+
+  const handleAddTracker = () => {
+    if (!selectedCatId || !newBudget) return;
+    const cat = categories.find(c => c.id === selectedCatId);
+    if (!cat) return;
+    onAddTracker(cat.name, Number(newBudget), cat.id);
+    setSelectedCatId('');
+    setNewBudget('');
+    setAddingNew(false);
+  };
 
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -254,72 +306,208 @@ function SpendingTrackersSection({
           <span className="text-[11px] text-muted-foreground">
             ₹{totalSpent.toLocaleString('en-IN')} of ₹{totalBudgets.toLocaleString('en-IN')}
           </span>
-          {/* Monthly / Weekly toggle */}
           <div className="flex rounded-lg bg-muted/40 p-0.5">
             <button
               onClick={() => setView('monthly')}
               className={`px-2 py-0.5 rounded-md text-[10px] font-medium transition-all ${view === 'monthly' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-            >
-              M
-            </button>
+            >M</button>
             <button
               onClick={() => setView('weekly')}
               className={`px-2 py-0.5 rounded-md text-[10px] font-medium transition-all ${view === 'weekly' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-            >
-              W
-            </button>
+            >W</button>
           </div>
         </div>
       </div>
 
       <div className="px-4 sm:px-5 pb-4">
         {view === 'weekly' ? (
-          /* ── Weekly summary view ── */
           <div className="space-y-1">
             {trackers.map(t => {
-              const weeklyBudget = Math.round(t.budget / 4);
-              const weeklySpent = Math.round(t.entries.reduce((s, e) => s + e.amount, 0) / 4);
+              const spent = t.category_id ? (expensesByCategory[t.category_id] || []).reduce((s, e) => s + e.amount, 0) : 0;
               return (
                 <div key={t.id} className="flex items-center justify-between py-1.5">
                   <span className="text-sm text-foreground">{t.name}</span>
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-muted-foreground">
-                      ~₹{weeklySpent.toLocaleString('en-IN')} spent
+                      ~₹{Math.round(spent / 4).toLocaleString('en-IN')} spent
                     </span>
                     <span className="text-sm font-semibold text-foreground w-20 text-right">
-                      ₹{weeklyBudget.toLocaleString('en-IN')}
+                      ₹{Math.round(t.budget / 4).toLocaleString('en-IN')}
                     </span>
                   </div>
                 </div>
               );
             })}
             <div className="pt-2 mt-2 border-t border-border/30 flex justify-between text-sm">
-              <span className="text-muted-foreground font-medium">Total {label}</span>
+              <span className="text-muted-foreground font-medium">Total / week</span>
               <span className="font-bold text-orange-500">
-                ~₹{Math.round(totalBudgets / divisor).toLocaleString('en-IN')} {label}
+                ~₹{Math.round(totalBudgets / 4).toLocaleString('en-IN')} / week
               </span>
             </div>
           </div>
         ) : (
-          /* ── Monthly detail view (with expandable entries) ── */
           <>
             {trackers.map(tracker => (
               <TrackerCard
                 key={tracker.id}
                 tracker={tracker}
-                onAddEntry={(date, desc, amt) => onAddEntry(tracker.id, date, desc, amt)}
-                onRemoveEntry={(entryId) => onRemoveEntry(tracker.id, entryId)}
+                expenses={tracker.category_id ? (expensesByCategory[tracker.category_id] || []) : []}
+                onEdit={(updates) => onEditTracker(tracker.id, updates)}
                 onRemove={() => onRemoveTracker(tracker.id)}
               />
             ))}
-            <AddItemRow
-              placeholder="Category name"
-              amountPlaceholder="Budget"
-              onAdd={(name, budget) => onAddTracker(name, budget)}
-            />
+
+            {/* Add tracker from categories */}
+            {addingNew ? (
+              <div className="flex items-center gap-2 pt-2">
+                <select
+                  value={selectedCatId}
+                  onChange={e => {
+                    setSelectedCatId(e.target.value);
+                    const cat = categories.find(c => c.id === e.target.value);
+                    if (cat) {
+                      const defaultBudget = DEFAULT_BUDGETS[cat.name.toLowerCase()];
+                      if (defaultBudget) setNewBudget(String(defaultBudget));
+                    }
+                  }}
+                  className="flex-1 min-w-0 h-8 px-2 rounded-lg bg-muted/30 border border-border/30 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30"
+                >
+                  <option value="">Select category</option>
+                  {availableCategories.map(c => (
+                    <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ''}{c.name}</option>
+                  ))}
+                </select>
+                <input
+                  value={newBudget}
+                  onChange={e => setNewBudget(e.target.value)}
+                  placeholder="Budget"
+                  type="number"
+                  onKeyDown={e => e.key === 'Enter' && handleAddTracker()}
+                  className="w-20 sm:w-24 h-8 px-2.5 rounded-lg bg-muted/30 border border-border/30 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/30 text-right transition-all"
+                />
+                <button onClick={handleAddTracker} className="h-8 w-8 shrink-0 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center transition-all active:scale-95">
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+                <button onClick={() => { setAddingNew(false); setSelectedCatId(''); setNewBudget(''); }} className="h-8 w-8 shrink-0 rounded-lg bg-muted/30 text-muted-foreground hover:text-foreground flex items-center justify-center transition-all">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setAddingNew(true)}
+                className="flex items-center gap-1.5 pt-2 text-xs text-primary hover:text-primary/80 transition-colors"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add category tracker
+              </button>
+            )}
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════
+   Tracker Card — shows real expenses
+   ═══════════════════════════════════════════════ */
+function TrackerCard({
+  tracker, expenses, onEdit, onRemove,
+}: {
+  tracker: Tracker;
+  expenses: Expense[];
+  onEdit: (updates: Partial<Omit<Tracker, 'id'>>) => void;
+  onRemove: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editBudget, setEditBudget] = useState(String(tracker.budget));
+
+  const spent = expenses.reduce((s, e) => s + e.amount, 0);
+  const pct = tracker.budget > 0 ? Math.min((spent / tracker.budget) * 100, 100) : 0;
+  const over = spent > tracker.budget;
+
+  const saveBudget = () => {
+    const val = Number(editBudget);
+    if (val > 0 && val !== tracker.budget) onEdit({ budget: val });
+    setEditing(false);
+  };
+
+  return (
+    <div className="border border-border/30 rounded-xl mb-2 overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between p-3 hover:bg-muted/20 transition-colors"
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-medium text-foreground truncate">{tracker.name}</span>
+          <span className="text-[11px] text-muted-foreground shrink-0">
+            ₹{spent.toLocaleString('en-IN')} / ₹{tracker.budget.toLocaleString('en-IN')}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="w-16 h-1.5 rounded-full bg-muted/50 overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${over ? 'bg-red-500' : 'bg-primary'}`}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${open ? 'rotate-90' : ''}`} />
+        </div>
+      </button>
+
+      {open && (
+        <div className="px-3 pb-3 space-y-1 animate-fade-in">
+          {/* Budget edit */}
+          <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-border/20">
+            {editing ? (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-muted-foreground">Budget: ₹</span>
+                <input
+                  autoFocus
+                  value={editBudget}
+                  onChange={e => setEditBudget(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') saveBudget(); if (e.key === 'Escape') setEditing(false); }}
+                  onBlur={saveBudget}
+                  type="number"
+                  className="w-20 h-6 px-1.5 rounded bg-muted/30 border border-border/30 text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-primary/30"
+                />
+              </div>
+            ) : (
+              <button onClick={(e) => { e.stopPropagation(); setEditing(true); setEditBudget(String(tracker.budget)); }} className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-primary transition-colors">
+                <Pencil className="h-2.5 w-2.5" /> Budget: ₹{tracker.budget.toLocaleString('en-IN')}
+              </button>
+            )}
+            <button onClick={onRemove} className="text-[11px] text-muted-foreground hover:text-red-500 transition-colors">
+              Remove
+            </button>
+          </div>
+
+          {/* Real expenses from dashboard */}
+          {expenses.length > 0 ? (
+            <div className="grid grid-cols-[auto_1fr_auto] gap-x-3 gap-y-1 text-xs">
+              <span className="text-muted-foreground font-medium">Date</span>
+              <span className="text-muted-foreground font-medium">Description</span>
+              <span className="text-muted-foreground font-medium text-right">Amount</span>
+              {expenses.map(e => (
+                <div key={e.id} className="contents">
+                  <span className="text-muted-foreground py-0.5">{format(parseISO(e.date), 'dd/MM')}</span>
+                  <span className="text-foreground py-0.5 truncate">{e.title}</span>
+                  <span className="text-foreground font-medium text-right py-0.5">₹{e.amount.toLocaleString('en-IN')}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[11px] text-muted-foreground py-2">No expenses logged in this category yet.</p>
+          )}
+
+          <div className="flex justify-between items-center pt-2 border-t border-border/20">
+            <span className="text-[11px] text-muted-foreground">
+              {over ? `Over by ₹${(spent - tracker.budget).toLocaleString('en-IN')}` : `₹${(tracker.budget - spent).toLocaleString('en-IN')} left`}
+            </span>
+            <span className="text-[11px] text-muted-foreground">{expenses.length} expense{expenses.length !== 1 ? 's' : ''}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -347,15 +535,33 @@ function Section({
 }
 
 /* ═══════════════════════════════════════════════
-   Allocation List
+   Allocation List (with inline edit)
    ═══════════════════════════════════════════════ */
 function AllocationList({
-  allocations, onToggle, onRemove
+  allocations, onToggle, onEdit, onRemove
 }: {
   allocations: { id: string; title: string; amount: number; completed: boolean }[];
   onToggle: (id: string) => void;
+  onEdit: (id: string, updates: { title?: string; amount?: number }) => void;
   onRemove: (id: string) => void;
 }) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editAmount, setEditAmount] = useState('');
+
+  const startEdit = (a: typeof allocations[0]) => {
+    setEditingId(a.id);
+    setEditTitle(a.title);
+    setEditAmount(String(a.amount));
+  };
+
+  const saveEdit = () => {
+    if (editingId && editTitle.trim()) {
+      onEdit(editingId, { title: editTitle.trim(), amount: Number(editAmount) || 0 });
+    }
+    setEditingId(null);
+  };
+
   return (
     <div className="space-y-0.5">
       {allocations.map(a => (
@@ -368,12 +574,32 @@ function AllocationList({
           >
             {a.completed && <Check className="h-3 w-3 text-primary-foreground" />}
           </button>
-          <span className={`flex-1 text-sm ${a.completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
-            {a.title}
-          </span>
-          <span className={`text-sm font-semibold ${a.completed ? 'text-muted-foreground' : 'text-foreground'}`}>
-            ₹{a.amount.toLocaleString('en-IN')}
-          </span>
+          {editingId === a.id ? (
+            <>
+              <input autoFocus value={editTitle} onChange={e => setEditTitle(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditingId(null); }}
+                className="flex-1 min-w-0 h-7 px-1.5 rounded bg-muted/30 border border-border/30 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30" />
+              <input value={editAmount} onChange={e => setEditAmount(e.target.value)} type="number"
+                onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditingId(null); }}
+                onBlur={saveEdit}
+                className="w-20 h-7 px-1.5 rounded bg-muted/30 border border-border/30 text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-primary/30" />
+            </>
+          ) : (
+            <>
+              <span
+                onClick={() => !a.completed && startEdit(a)}
+                className={`flex-1 text-sm cursor-pointer ${a.completed ? 'line-through text-muted-foreground' : 'text-foreground hover:text-primary'}`}
+              >
+                {a.title}
+              </span>
+              <span
+                onClick={() => !a.completed && startEdit(a)}
+                className={`text-sm font-semibold cursor-pointer ${a.completed ? 'text-muted-foreground' : 'text-foreground hover:text-primary'}`}
+              >
+                ₹{a.amount.toLocaleString('en-IN')}
+              </span>
+            </>
+          )}
           <button onClick={() => onRemove(a.id)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-500 transition-all p-0.5">
             <X className="h-3.5 w-3.5" />
           </button>
@@ -384,77 +610,52 @@ function AllocationList({
 }
 
 /* ═══════════════════════════════════════════════
-   Tracker Card (category + entries table)
+   Editable Row (for balance distribution, investments)
    ═══════════════════════════════════════════════ */
-function TrackerCard({
-  tracker, onAddEntry, onRemoveEntry, onRemove
+function EditableRow({
+  label, amount, subtitle, amountColor = 'text-foreground', onSave, onRemove,
 }: {
-  tracker: Tracker;
-  onAddEntry: (date: string, desc: string, amount: number) => void;
-  onRemoveEntry: (entryId: string) => void;
+  label: string; amount: number; subtitle?: string; amountColor?: string;
+  onSave: (label: string, amount: number) => void;
   onRemove: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const spent = tracker.entries.reduce((s, e) => s + e.amount, 0);
-  const pct = tracker.budget > 0 ? Math.min((spent / tracker.budget) * 100, 100) : 0;
-  const over = spent > tracker.budget;
+  const [editing, setEditing] = useState(false);
+  const [editLabel, setEditLabel] = useState(label);
+  const [editAmount, setEditAmount] = useState(String(amount));
+
+  const save = () => {
+    if (editLabel.trim()) onSave(editLabel.trim(), Number(editAmount) || 0);
+    setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-2 py-1.5">
+        <input autoFocus value={editLabel} onChange={e => setEditLabel(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }}
+          className="flex-1 min-w-0 h-7 px-1.5 rounded bg-muted/30 border border-border/30 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30" />
+        <input value={editAmount} onChange={e => setEditAmount(e.target.value)} type="number"
+          onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }}
+          onBlur={save}
+          className="w-24 h-7 px-1.5 rounded bg-muted/30 border border-border/30 text-xs text-foreground text-right focus:outline-none focus:ring-1 focus:ring-primary/30" />
+      </div>
+    );
+  }
 
   return (
-    <div className="border border-border/30 rounded-xl mb-2 overflow-hidden">
-      {/* Header */}
-      <button
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between p-3 hover:bg-muted/20 transition-colors"
-      >
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-sm font-medium text-foreground truncate">{tracker.name}</span>
-          <span className="text-[11px] text-muted-foreground shrink-0">
-            ₹{spent.toLocaleString('en-IN')} / ₹{tracker.budget.toLocaleString('en-IN')}
-          </span>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="w-16 h-1.5 rounded-full bg-muted/50 overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all ${over ? 'bg-red-500' : 'bg-primary'}`}
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-          <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${open ? 'rotate-90' : ''}`} />
-        </div>
-      </button>
-
-      {/* Entries */}
-      {open && (
-        <div className="px-3 pb-3 space-y-1 animate-fade-in">
-          {tracker.entries.length > 0 && (
-            <div className="grid grid-cols-[auto_1fr_auto_auto] gap-x-3 gap-y-1 text-xs">
-              <span className="text-muted-foreground font-medium">Date</span>
-              <span className="text-muted-foreground font-medium">Description</span>
-              <span className="text-muted-foreground font-medium text-right">Amount</span>
-              <span />
-              {tracker.entries.map(e => (
-                <div key={e.id} className="contents group">
-                  <span className="text-muted-foreground py-0.5">{e.date}</span>
-                  <span className="text-foreground py-0.5 truncate">{e.description}</span>
-                  <span className="text-foreground font-medium text-right py-0.5">₹{e.amount.toLocaleString('en-IN')}</span>
-                  <button onClick={() => onRemoveEntry(e.id)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-500 p-0.5 transition-all">
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          <AddEntryRow onAdd={onAddEntry} />
-          <div className="flex justify-between items-center pt-2 border-t border-border/20">
-            <span className="text-[11px] text-muted-foreground">
-              {over ? `Over by ₹${(spent - tracker.budget).toLocaleString('en-IN')}` : `₹${(tracker.budget - spent).toLocaleString('en-IN')} left`}
-            </span>
-            <button onClick={onRemove} className="text-[11px] text-muted-foreground hover:text-red-500 transition-colors">
-              Remove tracker
-            </button>
-          </div>
-        </div>
-      )}
+    <div className="flex items-center justify-between py-1.5 group">
+      <div className="min-w-0 flex-1 cursor-pointer" onClick={() => setEditing(true)}>
+        <span className="text-sm text-foreground hover:text-primary transition-colors">{label}</span>
+        {subtitle && <span className="text-xs text-muted-foreground ml-2">— {subtitle}</span>}
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <span onClick={() => setEditing(true)} className={`text-sm font-semibold cursor-pointer hover:text-primary transition-colors ${amountColor}`}>
+          ₹{amount.toLocaleString('en-IN')}
+        </span>
+        <button onClick={onRemove} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-500 transition-all p-0.5">
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -479,51 +680,14 @@ function AddItemRow({
 
   return (
     <div className="flex items-center gap-2 pt-2">
-      <input
-        value={name}
-        onChange={e => setName(e.target.value)}
-        placeholder={placeholder}
+      <input value={name} onChange={e => setName(e.target.value)} placeholder={placeholder}
         onKeyDown={e => e.key === 'Enter' && submit()}
-        className="flex-1 min-w-0 h-8 px-2.5 rounded-lg bg-muted/30 border border-border/30 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all"
-      />
-      <input
-        value={amount}
-        onChange={e => setAmount(e.target.value)}
-        placeholder={amountPlaceholder}
-        type="number"
+        className="flex-1 min-w-0 h-8 px-2.5 rounded-lg bg-muted/30 border border-border/30 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all" />
+      <input value={amount} onChange={e => setAmount(e.target.value)} placeholder={amountPlaceholder} type="number"
         onKeyDown={e => e.key === 'Enter' && submit()}
-        className="w-20 sm:w-24 h-8 px-2.5 rounded-lg bg-muted/30 border border-border/30 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/30 text-right transition-all"
-      />
+        className="w-20 sm:w-24 h-8 px-2.5 rounded-lg bg-muted/30 border border-border/30 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/30 text-right transition-all" />
       <button onClick={submit} className="h-8 w-8 shrink-0 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center transition-all active:scale-95">
         <Plus className="h-3.5 w-3.5" />
-      </button>
-    </div>
-  );
-}
-
-function AddEntryRow({ onAdd }: { onAdd: (date: string, desc: string, amount: number) => void }) {
-  const [date, setDate] = useState('');
-  const [desc, setDesc] = useState('');
-  const [amount, setAmount] = useState('');
-
-  const submit = () => {
-    if (!desc.trim() || !amount) return;
-    onAdd(date || format(new Date(), 'dd/MM'), desc.trim(), Number(amount));
-    setDate('');
-    setDesc('');
-    setAmount('');
-  };
-
-  return (
-    <div className="flex items-center gap-1.5 pt-1.5">
-      <input value={date} onChange={e => setDate(e.target.value)} placeholder="Date" onKeyDown={e => e.key === 'Enter' && submit()}
-        className="w-14 sm:w-16 h-7 px-1.5 rounded-md bg-muted/30 border border-border/30 text-[11px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all" />
-      <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Description" onKeyDown={e => e.key === 'Enter' && submit()}
-        className="flex-1 min-w-0 h-7 px-1.5 rounded-md bg-muted/30 border border-border/30 text-[11px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all" />
-      <input value={amount} onChange={e => setAmount(e.target.value)} placeholder="₹" type="number" onKeyDown={e => e.key === 'Enter' && submit()}
-        className="w-16 h-7 px-1.5 rounded-md bg-muted/30 border border-border/30 text-[11px] text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/30 text-right transition-all" />
-      <button onClick={submit} className="h-7 w-7 shrink-0 rounded-md bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center transition-all active:scale-95">
-        <Plus className="h-3 w-3" />
       </button>
     </div>
   );
@@ -537,18 +701,19 @@ function AddInvestmentRow({ onAdd }: { onAdd: (name: string, amount: number, des
   const submit = () => {
     if (!name.trim() || !amount) return;
     onAdd(name.trim(), Number(amount), desc.trim());
-    setName('');
-    setAmount('');
-    setDesc('');
+    setName(''); setAmount(''); setDesc('');
   };
 
   return (
     <div className="flex items-center gap-1.5 pt-2 flex-wrap sm:flex-nowrap">
-      <input value={name} onChange={e => setName(e.target.value)} placeholder="Name (e.g. Gold ETF)" onKeyDown={e => e.key === 'Enter' && submit()}
+      <input value={name} onChange={e => setName(e.target.value)} placeholder="Name (e.g. Gold ETF)"
+        onKeyDown={e => e.key === 'Enter' && submit()}
         className="flex-1 min-w-[100px] h-8 px-2.5 rounded-lg bg-muted/30 border border-border/30 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all" />
-      <input value={amount} onChange={e => setAmount(e.target.value)} placeholder="₹ Amount" type="number" onKeyDown={e => e.key === 'Enter' && submit()}
+      <input value={amount} onChange={e => setAmount(e.target.value)} placeholder="₹ Amount" type="number"
+        onKeyDown={e => e.key === 'Enter' && submit()}
         className="w-20 sm:w-24 h-8 px-2.5 rounded-lg bg-muted/30 border border-border/30 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/30 text-right transition-all" />
-      <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Note" onKeyDown={e => e.key === 'Enter' && submit()}
+      <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Note"
+        onKeyDown={e => e.key === 'Enter' && submit()}
         className="w-20 sm:flex-1 h-8 px-2.5 rounded-lg bg-muted/30 border border-border/30 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/30 transition-all" />
       <button onClick={submit} className="h-8 w-8 shrink-0 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 flex items-center justify-center transition-all active:scale-95">
         <Plus className="h-3.5 w-3.5" />
