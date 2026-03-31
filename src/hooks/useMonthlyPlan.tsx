@@ -122,6 +122,41 @@ export function useMonthlyPlan(month: string, categories?: CategoryForPlan[]) {
     }
 
     if (data) {
+      let trackers = (data.trackers as Tracker[]) || [];
+
+      // Auto-migrate: if trackers have no category_id, rebuild from real categories
+      const hasUnlinked = trackers.some(t => !t.category_id);
+      if (hasUnlinked && categories && categories.length > 0) {
+        const catMap = new Map(categories.map(c => [c.name.toLowerCase(), c.id]));
+        // Try to match existing trackers by name
+        const migrated = trackers
+          .map(t => {
+            if (t.category_id) return t;
+            const matchId = catMap.get(t.name.toLowerCase());
+            return matchId ? { ...t, category_id: matchId } : null;
+          })
+          .filter(Boolean) as Tracker[];
+
+        // Add any categories that weren't in the old tracker list
+        const usedIds = new Set(migrated.map(t => t.category_id));
+        const missing = categories.filter(c => !usedIds.has(c.id));
+        const newTrackers = missing.map(c => ({
+          id: uid(),
+          name: c.name,
+          budget: DEFAULT_BUDGETS[c.name.toLowerCase()] || 500,
+          category_id: c.id,
+        }));
+
+        trackers = [...migrated, ...newTrackers];
+
+        // Persist the migration
+        supabase
+          .from('monthly_plans')
+          .update({ trackers: trackers as any })
+          .eq('id', data.id)
+          .then();
+      }
+
       setPlan({
         id: data.id,
         month: data.month,
@@ -129,7 +164,7 @@ export function useMonthlyPlan(month: string, categories?: CategoryForPlan[]) {
         income_label: data.income_label || 'Salary',
         allocations: (data.allocations as Allocation[]) || [],
         balance_distribution: (data.balance_distribution as BalanceItem[]) || [],
-        trackers: (data.trackers as Tracker[]) || [],
+        trackers,
         investments: (data.investments as Investment[]) || [],
         notes: data.notes || '',
       });
@@ -137,7 +172,7 @@ export function useMonthlyPlan(month: string, categories?: CategoryForPlan[]) {
       setPlan(null);
     }
     setLoading(false);
-  }, [user, month]);
+  }, [user, month, categories]);
 
   useEffect(() => {
     fetchPlan();
