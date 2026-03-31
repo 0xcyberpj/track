@@ -528,88 +528,10 @@ export const Dashboard = () => {
             </Dialog>
           )}
 
-          {/* Budget Overview */}
-          <Card className="glass rounded-2xl border-0 shadow-card animate-slide-up mb-20 sm:mb-0" style={{ animationDelay: '100ms' }}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <div>
-                <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
-                  <Target className="h-4 w-4 text-primary" />
-                  Budgets
-                </CardTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {format(currentDate, 'MMMM yyyy')} &middot; Spent resets monthly
-                </p>
-              </div>
-              <Button size="icon" variant="ghost" onClick={openCreateBudget} className="h-8 w-8 rounded-xl hover:bg-primary/10 text-primary">
-                <Plus className="h-4 w-4" />
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {budgetItems.length === 0 ? (
-                  <div className="text-center py-10 text-muted-foreground">
-                    <div className="w-14 h-14 rounded-full bg-muted/20 flex items-center justify-center mx-auto mb-3">
-                      <Target className="h-6 w-6 opacity-30" />
-                    </div>
-                    <p className="text-xs font-medium mb-1">No budgets yet</p>
-                    <p className="text-[10px] text-muted-foreground/70">Set limits to control spending</p>
-                  </div>
-                ) : (
-                  budgetItems.map(budget => {
-                    const isOver = budget.percent >= 1;
-                    const isWarning = budget.percent >= 0.7 && budget.percent < 0.9;
-                    const isDanger = budget.percent >= 0.9;
-                    const barColor = isDanger ? '#ef4444' : isWarning ? '#f59e0b' : (budget.category?.color || '#22c55e');
-
-                    return (
-                      <div key={budget.id} className="rounded-xl bg-secondary/40 p-3 hover:bg-secondary/60 transition-colors">
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="font-medium text-foreground text-[15px] truncate">
-                            {budget.category?.name || budget.name}
-                          </div>
-                          <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-                            <button className="text-xs text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-md hover:bg-muted/50 transition-colors" onClick={() => openEditBudget(budget)}>
-                              Edit
-                            </button>
-                            <button className="text-xs text-muted-foreground hover:text-red-500 px-1.5 py-0.5 rounded-md hover:bg-red-500/10 transition-colors" onClick={() => { if (confirm('Delete this budget?')) deleteBudget(budget.id); }}>
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                        <div className="text-xs text-muted-foreground flex items-center gap-1.5 mb-2">
-                          {budget.isAutoRenewed && (
-                            <span className="inline-flex items-center gap-0.5 text-primary font-medium">
-                              <RefreshCw className="h-3 w-3" /> Reset
-                            </span>
-                          )}
-                          <span>{format(budget.effectiveStart, 'MMM d')} - {format(budget.effectiveEnd, 'MMM d')}</span>
-                          <span className="text-muted-foreground/60">&middot; {budget.daysLeft}d left</span>
-                        </div>
-                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden mb-1.5">
-                          <div className="h-2 rounded-full transition-all duration-700 ease-out" style={{ width: `${Math.min(budget.percent * 100, 100)}%`, backgroundColor: barColor }} />
-                        </div>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-muted-foreground tabular-nums">
-                            ₹{formatAmount(budget.spent)} / ₹{formatAmount(budget.amount)}
-                          </span>
-                          <span className="font-semibold tabular-nums" style={{ color: barColor }}>
-                            {isOver ? `₹${formatAmount(Math.abs(budget.remaining))} over` : `₹${formatAmount(budget.remaining)} left`}
-                          </span>
-                        </div>
-                        <div className="text-right text-[11px] text-muted-foreground/50 mt-0.5 tabular-nums">
-                          {Math.round(budget.percent * 100)}% used
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Sidebar - desktop only (mobile has inline summary cards) */}
-        <div className="hidden xl:block space-y-5">
+        <div className="hidden xl:block space-y-5 xl:sticky xl:top-4 xl:self-start xl:max-h-[calc(100dvh-2rem)] xl:overflow-y-auto xl:scrollbar-thin">
           {/* Statistics */}
           <Card className="glass rounded-2xl border-0 shadow-card animate-slide-up">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -693,6 +615,85 @@ export const Dashboard = () => {
                       </div>
                     ))}
                   </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Budget Overview */}
+          <Card className="glass rounded-2xl border-0 shadow-card animate-slide-up" style={{ animationDelay: '100ms' }}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <div>
+                <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <Target className="h-4 w-4 text-primary" />
+                  Budgets
+                </CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {format(currentDate, 'MMMM yyyy')} &middot; Spent resets monthly
+                </p>
+              </div>
+              <Button size="icon" variant="ghost" onClick={openCreateBudget} className="h-8 w-8 rounded-xl hover:bg-primary/10 text-primary">
+                <Plus className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {budgetItems.length === 0 ? (
+                  <div className="text-center py-10 text-muted-foreground">
+                    <div className="w-14 h-14 rounded-full bg-muted/20 flex items-center justify-center mx-auto mb-3">
+                      <Target className="h-6 w-6 opacity-30" />
+                    </div>
+                    <p className="text-xs font-medium mb-1">No budgets yet</p>
+                    <p className="text-[10px] text-muted-foreground/70">Set limits to control spending</p>
+                  </div>
+                ) : (
+                  budgetItems.map(budget => {
+                    const isOver = budget.percent >= 1;
+                    const isWarning = budget.percent >= 0.7 && budget.percent < 0.9;
+                    const isDanger = budget.percent >= 0.9;
+                    const barColor = isDanger ? '#ef4444' : isWarning ? '#f59e0b' : (budget.category?.color || '#22c55e');
+
+                    return (
+                      <div key={budget.id} className="rounded-xl bg-secondary/40 p-3 hover:bg-secondary/60 transition-colors">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="font-medium text-foreground text-[15px] truncate">
+                            {budget.category?.name || budget.name}
+                          </div>
+                          <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                            <button className="text-xs text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-md hover:bg-muted/50 transition-colors" onClick={() => openEditBudget(budget)}>
+                              Edit
+                            </button>
+                            <button className="text-xs text-muted-foreground hover:text-red-500 px-1.5 py-0.5 rounded-md hover:bg-red-500/10 transition-colors" onClick={() => { if (confirm('Delete this budget?')) deleteBudget(budget.id); }}>
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground flex items-center gap-1.5 mb-2">
+                          {budget.isAutoRenewed && (
+                            <span className="inline-flex items-center gap-0.5 text-primary font-medium">
+                              <RefreshCw className="h-3 w-3" /> Reset
+                            </span>
+                          )}
+                          <span>{format(budget.effectiveStart, 'MMM d')} - {format(budget.effectiveEnd, 'MMM d')}</span>
+                          <span className="text-muted-foreground/60">&middot; {budget.daysLeft}d left</span>
+                        </div>
+                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden mb-1.5">
+                          <div className="h-2 rounded-full transition-all duration-700 ease-out" style={{ width: `${Math.min(budget.percent * 100, 100)}%`, backgroundColor: barColor }} />
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-muted-foreground tabular-nums">
+                            ₹{formatAmount(budget.spent)} / ₹{formatAmount(budget.amount)}
+                          </span>
+                          <span className="font-semibold tabular-nums" style={{ color: barColor }}>
+                            {isOver ? `₹${formatAmount(Math.abs(budget.remaining))} over` : `₹${formatAmount(budget.remaining)} left`}
+                          </span>
+                        </div>
+                        <div className="text-right text-[11px] text-muted-foreground/50 mt-0.5 tabular-nums">
+                          {Math.round(budget.percent * 100)}% used
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </CardContent>
