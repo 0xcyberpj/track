@@ -126,13 +126,6 @@ function AppWithFinanceData() {
   useEffect(() => {
     setQuickModalOpen(false);
   }, [location]);
-  useEffect(() => {
-    // On every route change, forcibly remove all open overlays
-    const removeOverlays = () => {
-      document.querySelectorAll('.fixed[data-state="open"], [data-state="open"].fixed').forEach(el => el.remove());
-    };
-    removeOverlays();
-  }, [location]);
   return (
     <>
       {(accounts.length > 0 && categories.length > 0) && (
