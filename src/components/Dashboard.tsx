@@ -246,7 +246,7 @@ export const Dashboard = () => {
 
   return (
     <>
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 pt-safe">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 pt-safe xl:min-h-[calc(100dvh-4rem)]">
         {/* Main Panel */}
         <div className="xl:col-span-2 space-y-5">
           <FloatingAddExpenseButton />
@@ -608,8 +608,8 @@ export const Dashboard = () => {
           </Card>
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-5">
+        {/* Sidebar - desktop only (mobile has inline summary cards) */}
+        <div className="hidden xl:block space-y-5">
           {/* Statistics */}
           <Card className="glass rounded-2xl border-0 shadow-card animate-slide-up">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
