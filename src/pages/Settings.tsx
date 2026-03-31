@@ -2,9 +2,10 @@ import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTheme, THEMES, type ThemeId } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
-import { Check, Palette, User, Shield, Bell, Globe, ChevronRight, Sparkles } from "lucide-react";
+import { Check, Palette, User, Shield, Bell, Globe, ChevronRight, Sparkles, CalendarDays } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useState } from "react";
+import { useMonthlyPlanEnabled } from "@/hooks/useMonthlyPlanEnabled";
 
 const Settings = () => {
   const { theme, setTheme } = useTheme();
@@ -107,6 +108,9 @@ const Settings = () => {
             </CardContent>
           </Card>
 
+          {/* Features */}
+          <FeaturesCard />
+
           {/* Notifications */}
           <Card className="glass rounded-2xl border-0 shadow-card animate-slide-up" style={{ animationDelay: '150ms' }}>
             <CardHeader className="pb-2">
@@ -156,6 +160,36 @@ const Settings = () => {
     </div>
   );
 };
+
+function FeaturesCard() {
+  const { enabled, setEnabled } = useMonthlyPlanEnabled();
+  return (
+    <Card className="glass rounded-2xl border-0 shadow-card animate-slide-up" style={{ animationDelay: '100ms' }}>
+      <CardHeader className="pb-2">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <CalendarDays className="h-4 w-4 text-primary" />
+          </div>
+          <CardTitle className="text-base font-semibold">Features</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent className="divide-y divide-border">
+        <div className="flex items-center justify-between py-3.5">
+          <div>
+            <span className="text-sm font-medium text-foreground">Monthly Budget Plan</span>
+            <p className="text-xs text-muted-foreground mt-0.5">Plan income, allocations, trackers & investments monthly</p>
+          </div>
+          <button
+            onClick={() => setEnabled(!enabled)}
+            className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${enabled ? 'bg-primary' : 'bg-muted'}`}
+          >
+            <div className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${enabled ? 'translate-x-5' : 'translate-x-0'}`} />
+          </button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function SettingsRow({ label, value }: { label: string; value: string }) {
   return (
