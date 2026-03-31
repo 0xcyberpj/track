@@ -14,6 +14,8 @@ const MonthlyPlan = () => {
     format(startOfMonth(new Date()), 'yyyy-MM-dd')
   );
 
+  const { expenses, categories } = useFinanceData();
+
   const {
     plan, loading, saving, createPlan, savePlan, savePlanDebounced, deletePlan,
     addAllocation, editAllocation, toggleAllocation, removeAllocation,
@@ -22,9 +24,7 @@ const MonthlyPlan = () => {
     addInvestment, editInvestment, removeInvestment,
     totalAllocations, totalBalance, totalBalanceDistributed,
     totalTrackerBudgets, totalInvested,
-  } = useMonthlyPlan(selectedMonth);
-
-  const { expenses, categories } = useFinanceData();
+  } = useMonthlyPlan(selectedMonth, categories);
 
   // Filter expenses for the selected month
   const monthStart = startOfMonth(new Date(selectedMonth));

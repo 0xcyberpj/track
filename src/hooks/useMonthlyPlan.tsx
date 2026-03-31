@@ -48,23 +48,21 @@ const uid = () => crypto.randomUUID();
 
 // Default budget per category name (fallback when no match)
 export const DEFAULT_BUDGETS: Record<string, number> = {
-  'movie': 500, 'spotify': 100, 'travel': 1000, 'petrol': 500,
+  'food & dining': 2000, 'transportation': 1000, 'shopping': 1000,
+  'entertainment': 500, 'bills & utilities': 1500, 'healthcare': 500,
+  'education': 500, 'travel': 1000, 'personal care': 500, 'other': 500,
+  // Legacy custom names
+  'movie': 500, 'spotify': 100, 'petrol': 500,
   'eggs': 500, 'chicken': 1000, 'milk': 600, 'weekend food': 2000,
   'weekday food': 1000, 'misc': 400, 'snacks': 200,
 };
 
-const defaultPlan = (month: string): Omit<MonthlyPlan, 'id'> => ({
-  month,
-  income: 0,
-  income_label: 'Salary',
-  allocations: [],
-  balance_distribution: [],
-  trackers: [], // populated from real categories in the page
-  investments: [],
-  notes: '',
-});
+interface CategoryForPlan {
+  id: string;
+  name: string;
+}
 
-export function useMonthlyPlan(month: string) {
+export function useMonthlyPlan(month: string, categories?: CategoryForPlan[]) {
   const { user } = useAuth();
   const [plan, setPlan] = useState<MonthlyPlan | null>(null);
   const [loading, setLoading] = useState(true);
@@ -148,20 +146,27 @@ export function useMonthlyPlan(month: string) {
   const createPlan = useCallback(async () => {
     if (!user) return;
     setSaving(true);
-    const defaults = defaultPlan(month);
+
+    // Auto-create trackers from user's actual expense categories
+    const autoTrackers: Tracker[] = (categories || []).map(cat => ({
+      id: uid(),
+      name: cat.name,
+      budget: DEFAULT_BUDGETS[cat.name.toLowerCase()] || 500,
+      category_id: cat.id,
+    }));
 
     const { data, error } = await supabase
       .from('monthly_plans')
       .insert({
         user_id: user.id,
         month,
-        income: defaults.income,
-        income_label: defaults.income_label,
-        allocations: defaults.allocations as any,
-        balance_distribution: defaults.balance_distribution as any,
-        trackers: defaults.trackers as any,
-        investments: defaults.investments as any,
-        notes: defaults.notes,
+        income: 0,
+        income_label: 'Salary',
+        allocations: [] as any,
+        balance_distribution: [] as any,
+        trackers: autoTrackers as any,
+        investments: [] as any,
+        notes: '',
       })
       .select()
       .single();
@@ -183,7 +188,7 @@ export function useMonthlyPlan(month: string) {
       toast({ title: 'Plan created', description: `Monthly plan ready.` });
     }
     setSaving(false);
-  }, [user, month]);
+  }, [user, month, categories]);
 
   // Persist to DB (internal)
   const persistToDB = useCallback(async (merged: MonthlyPlan) => {
