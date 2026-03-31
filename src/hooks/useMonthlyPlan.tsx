@@ -17,18 +17,12 @@ export interface BalanceItem {
   amount: number;
 }
 
-export interface TrackerEntry {
-  id: string;
-  date: string;
-  description: string;
-  amount: number;
-}
-
 export interface Tracker {
   id: string;
   name: string;
   budget: number;
-  entries: TrackerEntry[];
+  category_id?: string; // links to expense_categories
+  entries?: any[]; // legacy, kept for backward compat
 }
 
 export interface Investment {
@@ -52,20 +46,12 @@ export interface MonthlyPlan {
 
 const uid = () => crypto.randomUUID();
 
-// Default budget categories (monthly)
-export const DEFAULT_TRACKERS: Omit<Tracker, 'id'>[] = [
-  { name: 'Movie', budget: 500, entries: [] },
-  { name: 'Spotify', budget: 100, entries: [] },
-  { name: 'Travel', budget: 1000, entries: [] },
-  { name: 'Petrol', budget: 500, entries: [] },
-  { name: 'Eggs', budget: 500, entries: [] },
-  { name: 'Chicken', budget: 1000, entries: [] },
-  { name: 'Milk', budget: 600, entries: [] },
-  { name: 'Weekend Food', budget: 2000, entries: [] },
-  { name: 'Weekday Food', budget: 1000, entries: [] },
-  { name: 'Misc', budget: 400, entries: [] },
-  { name: 'Snacks', budget: 200, entries: [] },
-];
+// Default budget per category name (fallback when no match)
+export const DEFAULT_BUDGETS: Record<string, number> = {
+  'movie': 500, 'spotify': 100, 'travel': 1000, 'petrol': 500,
+  'eggs': 500, 'chicken': 1000, 'milk': 600, 'weekend food': 2000,
+  'weekday food': 1000, 'misc': 400, 'snacks': 200,
+};
 
 const defaultPlan = (month: string): Omit<MonthlyPlan, 'id'> => ({
   month,
@@ -73,7 +59,7 @@ const defaultPlan = (month: string): Omit<MonthlyPlan, 'id'> => ({
   income_label: 'Salary',
   allocations: [],
   balance_distribution: [],
-  trackers: DEFAULT_TRACKERS.map(t => ({ ...t, id: uid() })),
+  trackers: [], // populated from real categories in the page
   investments: [],
   notes: '',
 });
@@ -291,6 +277,15 @@ export function useMonthlyPlan(month: string) {
     });
   }, [persistToDB]);
 
+  const editAllocation = useCallback((id: string, updates: Partial<Omit<Allocation, 'id'>>) => {
+    setPlan(prev => {
+      if (!prev) return prev;
+      const merged = { ...prev, allocations: prev.allocations.map(a => a.id === id ? { ...a, ...updates } : a) };
+      persistToDB(merged);
+      return merged;
+    });
+  }, [persistToDB]);
+
   const removeAllocation = useCallback((id: string) => {
     setPlan(prev => {
       if (!prev) return prev;
@@ -309,6 +304,15 @@ export function useMonthlyPlan(month: string) {
     });
   }, [persistToDB]);
 
+  const editBalanceItem = useCallback((id: string, updates: Partial<Omit<BalanceItem, 'id'>>) => {
+    setPlan(prev => {
+      if (!prev) return prev;
+      const merged = { ...prev, balance_distribution: prev.balance_distribution.map(b => b.id === id ? { ...b, ...updates } : b) };
+      persistToDB(merged);
+      return merged;
+    });
+  }, [persistToDB]);
+
   const removeBalanceItem = useCallback((id: string) => {
     setPlan(prev => {
       if (!prev) return prev;
@@ -318,10 +322,25 @@ export function useMonthlyPlan(month: string) {
     });
   }, [persistToDB]);
 
-  const addTracker = useCallback((name: string, budget: number) => {
+  const addTracker = useCallback((name: string, budget: number, category_id?: string) => {
     setPlan(prev => {
       if (!prev) return prev;
-      const merged = { ...prev, trackers: [...prev.trackers, { id: uid(), name, budget, entries: [] }] };
+      // Prevent duplicate category
+      const dupKey = category_id || name.toLowerCase();
+      if (prev.trackers.some(t => (t.category_id && t.category_id === category_id) || (!category_id && t.name.toLowerCase() === dupKey))) {
+        toast({ title: 'Duplicate', description: `"${name}" already exists`, variant: 'destructive' });
+        return prev;
+      }
+      const merged = { ...prev, trackers: [...prev.trackers, { id: uid(), name, budget, category_id }] };
+      persistToDB(merged);
+      return merged;
+    });
+  }, [persistToDB]);
+
+  const editTracker = useCallback((id: string, updates: Partial<Omit<Tracker, 'id'>>) => {
+    setPlan(prev => {
+      if (!prev) return prev;
+      const merged = { ...prev, trackers: prev.trackers.map(t => t.id === id ? { ...t, ...updates } : t) };
       persistToDB(merged);
       return merged;
     });
@@ -336,38 +355,19 @@ export function useMonthlyPlan(month: string) {
     });
   }, [persistToDB]);
 
-  const addTrackerEntry = useCallback((trackerId: string, date: string, description: string, amount: number) => {
-    setPlan(prev => {
-      if (!prev) return prev;
-      const merged = {
-        ...prev,
-        trackers: prev.trackers.map(t =>
-          t.id !== trackerId ? t : { ...t, entries: [...t.entries, { id: uid(), date, description, amount }] }
-        ),
-      };
-      persistToDB(merged);
-      return merged;
-    });
-  }, [persistToDB]);
-
-  const removeTrackerEntry = useCallback((trackerId: string, entryId: string) => {
-    setPlan(prev => {
-      if (!prev) return prev;
-      const merged = {
-        ...prev,
-        trackers: prev.trackers.map(t =>
-          t.id !== trackerId ? t : { ...t, entries: t.entries.filter(e => e.id !== entryId) }
-        ),
-      };
-      persistToDB(merged);
-      return merged;
-    });
-  }, [persistToDB]);
-
   const addInvestment = useCallback((name: string, amount: number, description: string) => {
     setPlan(prev => {
       if (!prev) return prev;
       const merged = { ...prev, investments: [...prev.investments, { id: uid(), name, amount, description }] };
+      persistToDB(merged);
+      return merged;
+    });
+  }, [persistToDB]);
+
+  const editInvestment = useCallback((id: string, updates: Partial<Omit<Investment, 'id'>>) => {
+    setPlan(prev => {
+      if (!prev) return prev;
+      const merged = { ...prev, investments: prev.investments.map(i => i.id === id ? { ...i, ...updates } : i) };
       persistToDB(merged);
       return merged;
     });
@@ -388,7 +388,7 @@ export function useMonthlyPlan(month: string) {
   const totalBalance = useMemo(() => (plan?.income || 0) - totalAllocations, [plan?.income, totalAllocations]);
   const totalBalanceDistributed = useMemo(() => (plan?.balance_distribution || []).reduce((s, b) => s + b.amount, 0), [plan?.balance_distribution]);
   const totalTrackerBudgets = useMemo(() => (plan?.trackers || []).reduce((s, t) => s + t.budget, 0), [plan?.trackers]);
-  const totalTrackerSpent = useMemo(() => (plan?.trackers || []).reduce((s, t) => s + t.entries.reduce((es, e) => es + e.amount, 0), 0), [plan?.trackers]);
+  // totalTrackerSpent is now computed in the page from real expenses
   const totalInvested = useMemo(() => (plan?.investments || []).reduce((s, i) => s + i.amount, 0), [plan?.investments]);
 
   return {
@@ -400,22 +400,23 @@ export function useMonthlyPlan(month: string) {
     savePlanDebounced,
     deletePlan,
     addAllocation,
+    editAllocation,
     toggleAllocation,
     removeAllocation,
     addBalanceItem,
+    editBalanceItem,
     removeBalanceItem,
     addTracker,
+    editTracker,
     removeTracker,
-    addTrackerEntry,
-    removeTrackerEntry,
     addInvestment,
+    editInvestment,
     removeInvestment,
     totalAllocations,
     completedAllocations,
     totalBalance,
     totalBalanceDistributed,
     totalTrackerBudgets,
-    totalTrackerSpent,
     totalInvested,
   };
 }
