@@ -253,7 +253,7 @@ export const Dashboard = () => {
           <div className="h-2 sm:h-0 w-full" />
 
           {/* Greeting */}
-          <div className="px-4 sm:px-0 sm:mt-14 animate-fade-in">
+          <div className="px-4 sm:px-0 sm:mt-2 animate-fade-in">
             <h2 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">{getGreeting()}</h2>
             <p className="text-sm sm:text-base text-muted-foreground mt-0.5">
               {format(currentDate, 'EEEE, MMMM d, yyyy')}
@@ -702,10 +702,11 @@ export const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
+      </div>
 
-        {/* Budget Modal */}
-        <Dialog open={budgetModalOpen} onOpenChange={setBudgetModalOpen}>
-          <DialogContent className="max-w-md w-full rounded-2xl">
+      {/* Budget Modal - outside grid to avoid layout issues */}
+      <Dialog open={budgetModalOpen} onOpenChange={setBudgetModalOpen}>
+        <DialogContent className="max-w-md w-full rounded-2xl">
             <DialogHeader>
               <DialogTitle className="text-lg font-bold">{editingBudget ? 'Edit Budget' : 'Create Budget'}</DialogTitle>
             </DialogHeader>
@@ -783,8 +784,7 @@ export const Dashboard = () => {
               </DialogFooter>
             </form>
           </DialogContent>
-        </Dialog>
-      </div>
+      </Dialog>
     </>
   );
 };

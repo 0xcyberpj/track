@@ -42,10 +42,10 @@ export const Header = () => {
       <header className="hidden md:block sticky top-0 z-50 w-full" style={{ background: 'hsl(var(--background) / 0.95)', backdropFilter: 'blur(20px)', borderBottom: '1px solid hsl(var(--border))' }}>
         <div className="container mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="p-1.5 rounded-lg bg-primary-gradient">
-              <BarChart3 className="h-5 w-5 text-white" />
+            <div className="p-1.5 rounded-lg bg-primary/10">
+              <BarChart3 className="h-5 w-5 text-primary" />
             </div>
-            <h1 className="text-lg font-bold bg-primary-gradient bg-clip-text text-transparent tracking-tight">
+            <h1 className="text-lg font-bold text-foreground tracking-tight">
               JUST TRACKER
             </h1>
           </div>
