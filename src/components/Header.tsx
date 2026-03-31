@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState } from "react";
 import { useTheme } from "@/hooks/useTheme";
+import { useMonthlyPlanEnabled } from "@/hooks/useMonthlyPlanEnabled";
 
 export const Header = () => {
   const { user, signOut } = useAuth();
@@ -13,6 +14,7 @@ export const Header = () => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isDark, toggleMode } = useTheme();
+  const { enabled: monthlyPlanEnabled } = useMonthlyPlanEnabled();
 
   const handleSignOut = async () => {
     await signOut();
@@ -26,7 +28,7 @@ export const Header = () => {
     { path: '/accounts', label: 'Savings', icon: Wallet },
     { path: '/add-expense', label: 'Add Expense', icon: Plus },
     { path: '/insights', label: 'Insights', icon: PieChart },
-    { path: '/monthly-plan', label: 'Plan', icon: CalendarDays }
+    ...(monthlyPlanEnabled ? [{ path: '/monthly-plan', label: 'Plan', icon: CalendarDays }] : []),
   ];
 
   const handleNavigation = (path: string) => {

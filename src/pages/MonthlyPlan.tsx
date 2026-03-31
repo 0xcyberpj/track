@@ -143,24 +143,15 @@ const MonthlyPlan = () => {
             </Section>
 
             {/* ─── Spending Trackers ─── */}
-            <Section icon={PiggyBank} title="Spending Trackers" color="text-orange-500"
-              subtitle={`₹${totalTrackerSpent.toLocaleString('en-IN')} of ₹${totalTrackerBudgets.toLocaleString('en-IN')} budget`}
-            >
-              {plan.trackers.map(tracker => (
-                <TrackerCard
-                  key={tracker.id}
-                  tracker={tracker}
-                  onAddEntry={(date, desc, amt) => addTrackerEntry(tracker.id, date, desc, amt)}
-                  onRemoveEntry={(entryId) => removeTrackerEntry(tracker.id, entryId)}
-                  onRemove={() => removeTracker(tracker.id)}
-                />
-              ))}
-              <AddItemRow
-                placeholder="Category name"
-                amountPlaceholder="Budget"
-                onAdd={(name, budget) => addTracker(name, budget)}
-              />
-            </Section>
+            <SpendingTrackersSection
+              trackers={plan.trackers}
+              totalBudgets={totalTrackerBudgets}
+              totalSpent={totalTrackerSpent}
+              onAddEntry={addTrackerEntry}
+              onRemoveEntry={removeTrackerEntry}
+              onRemoveTracker={removeTracker}
+              onAddTracker={addTracker}
+            />
 
             {/* ─── Investments ─── */}
             <Section icon={TrendingUp} title="Investments" color="text-emerald-500"
@@ -232,6 +223,106 @@ const MonthlyPlan = () => {
     </div>
   );
 };
+
+/* ═══════════════════════════════════════════════
+   Spending Trackers with weekly/monthly toggle
+   ═══════════════════════════════════════════════ */
+function SpendingTrackersSection({
+  trackers, totalBudgets, totalSpent,
+  onAddEntry, onRemoveEntry, onRemoveTracker, onAddTracker,
+}: {
+  trackers: Tracker[];
+  totalBudgets: number;
+  totalSpent: number;
+  onAddEntry: (trackerId: string, date: string, desc: string, amount: number) => void;
+  onRemoveEntry: (trackerId: string, entryId: string) => void;
+  onRemoveTracker: (id: string) => void;
+  onAddTracker: (name: string, budget: number) => void;
+}) {
+  const [view, setView] = useState<'monthly' | 'weekly'>('monthly');
+  const divisor = view === 'weekly' ? 4 : 1;
+  const label = view === 'weekly' ? '/ week' : '/ month';
+
+  return (
+    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+      <div className="px-4 sm:px-5 pt-4 pb-2 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <PiggyBank className="h-4 w-4 text-orange-500" />
+          <h3 className="text-sm font-semibold text-foreground">Spending Trackers</h3>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-muted-foreground">
+            ₹{totalSpent.toLocaleString('en-IN')} of ₹{totalBudgets.toLocaleString('en-IN')}
+          </span>
+          {/* Monthly / Weekly toggle */}
+          <div className="flex rounded-lg bg-muted/40 p-0.5">
+            <button
+              onClick={() => setView('monthly')}
+              className={`px-2 py-0.5 rounded-md text-[10px] font-medium transition-all ${view === 'monthly' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              M
+            </button>
+            <button
+              onClick={() => setView('weekly')}
+              className={`px-2 py-0.5 rounded-md text-[10px] font-medium transition-all ${view === 'weekly' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              W
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-4 sm:px-5 pb-4">
+        {view === 'weekly' ? (
+          /* ── Weekly summary view ── */
+          <div className="space-y-1">
+            {trackers.map(t => {
+              const weeklyBudget = Math.round(t.budget / 4);
+              const weeklySpent = Math.round(t.entries.reduce((s, e) => s + e.amount, 0) / 4);
+              return (
+                <div key={t.id} className="flex items-center justify-between py-1.5">
+                  <span className="text-sm text-foreground">{t.name}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-muted-foreground">
+                      ~₹{weeklySpent.toLocaleString('en-IN')} spent
+                    </span>
+                    <span className="text-sm font-semibold text-foreground w-20 text-right">
+                      ₹{weeklyBudget.toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+            <div className="pt-2 mt-2 border-t border-border/30 flex justify-between text-sm">
+              <span className="text-muted-foreground font-medium">Total {label}</span>
+              <span className="font-bold text-orange-500">
+                ~₹{Math.round(totalBudgets / divisor).toLocaleString('en-IN')} {label}
+              </span>
+            </div>
+          </div>
+        ) : (
+          /* ── Monthly detail view (with expandable entries) ── */
+          <>
+            {trackers.map(tracker => (
+              <TrackerCard
+                key={tracker.id}
+                tracker={tracker}
+                onAddEntry={(date, desc, amt) => onAddEntry(tracker.id, date, desc, amt)}
+                onRemoveEntry={(entryId) => onRemoveEntry(tracker.id, entryId)}
+                onRemove={() => onRemoveTracker(tracker.id)}
+              />
+            ))}
+            <AddItemRow
+              placeholder="Category name"
+              amountPlaceholder="Budget"
+              onAdd={(name, budget) => onAddTracker(name, budget)}
+            />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 /* ═══════════════════════════════════════════════
    Section wrapper

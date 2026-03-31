@@ -52,13 +52,28 @@ export interface MonthlyPlan {
 
 const uid = () => crypto.randomUUID();
 
-const emptyPlan = (month: string): Omit<MonthlyPlan, 'id'> => ({
+// Default budget categories (monthly)
+export const DEFAULT_TRACKERS: Omit<Tracker, 'id'>[] = [
+  { name: 'Movie', budget: 500, entries: [] },
+  { name: 'Spotify', budget: 100, entries: [] },
+  { name: 'Travel', budget: 1000, entries: [] },
+  { name: 'Petrol', budget: 500, entries: [] },
+  { name: 'Eggs', budget: 500, entries: [] },
+  { name: 'Chicken', budget: 1000, entries: [] },
+  { name: 'Milk', budget: 600, entries: [] },
+  { name: 'Weekend Food', budget: 2000, entries: [] },
+  { name: 'Weekday Food', budget: 1000, entries: [] },
+  { name: 'Misc', budget: 400, entries: [] },
+  { name: 'Snacks', budget: 200, entries: [] },
+];
+
+const defaultPlan = (month: string): Omit<MonthlyPlan, 'id'> => ({
   month,
   income: 0,
   income_label: 'Salary',
   allocations: [],
   balance_distribution: [],
-  trackers: [],
+  trackers: DEFAULT_TRACKERS.map(t => ({ ...t, id: uid() })),
   investments: [],
   notes: '',
 });
@@ -147,7 +162,7 @@ export function useMonthlyPlan(month: string) {
   const createPlan = useCallback(async () => {
     if (!user) return;
     setSaving(true);
-    const defaults = emptyPlan(month);
+    const defaults = defaultPlan(month);
 
     const { data, error } = await supabase
       .from('monthly_plans')
@@ -173,10 +188,10 @@ export function useMonthlyPlan(month: string) {
         month: data.month,
         income: Number(data.income),
         income_label: data.income_label || 'Salary',
-        allocations: [],
-        balance_distribution: [],
-        trackers: [],
-        investments: [],
+        allocations: (data.allocations as Allocation[]) || [],
+        balance_distribution: (data.balance_distribution as BalanceItem[]) || [],
+        trackers: (data.trackers as Tracker[]) || [],
+        investments: (data.investments as Investment[]) || [],
         notes: '',
       });
       toast({ title: 'Plan created', description: `Monthly plan ready.` });
