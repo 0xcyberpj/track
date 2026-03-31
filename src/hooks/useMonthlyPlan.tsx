@@ -46,15 +46,16 @@ export interface MonthlyPlan {
 
 const uid = () => crypto.randomUUID();
 
-// Default budget per category name (fallback when no match)
+// Default budget per category name (case-insensitive)
 export const DEFAULT_BUDGETS: Record<string, number> = {
   'food & dining': 2000, 'transportation': 1000, 'shopping': 1000,
   'entertainment': 500, 'bills & utilities': 1500, 'healthcare': 500,
   'education': 500, 'travel': 1000, 'personal care': 500, 'other': 500,
-  // Legacy custom names
-  'movie': 500, 'spotify': 100, 'petrol': 500,
-  'eggs': 500, 'chicken': 1000, 'milk': 600, 'weekend food': 2000,
-  'weekday food': 1000, 'misc': 400, 'snacks': 200,
+  'clothes & accessories': 500, 'debt': 1000, 'fruits': 500,
+  'house rent': 5000, 'investment': 2000, 'juice': 200,
+  'protein [chicken and egg]': 1500, 'petrol': 500, 'snacks': 200,
+  'milk': 600, 'misc': 400, 'movie': 500, 'spotify': 100,
+  'weekend food': 2000, 'weekday food': 1000, 'others': 500,
 };
 
 interface CategoryForPlan {

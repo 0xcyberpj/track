@@ -108,7 +108,7 @@ const MonthlyPlan = () => {
             <p className="text-sm text-muted-foreground mb-6">Create a monthly budget to track income, expenses, and investments.</p>
             <button
               onClick={createPlan}
-              disabled={saving}
+              disabled={saving || categories.length === 0}
               className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
