@@ -349,6 +349,22 @@ export const useFinanceData = () => {
     }
   };
 
+  const deleteBudget = async (budgetId: string) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('budgets')
+        .delete()
+        .eq('id', budgetId);
+      if (error) throw error;
+      setBudgets(prev => prev.filter(b => b.id !== budgetId));
+      toast({ title: "Deleted", description: "Budget removed successfully" });
+    } catch (error) {
+      console.error('Error deleting budget:', error);
+      toast({ title: "Error", description: "Failed to delete budget", variant: "destructive" });
+    }
+  };
+
   // Update expense
   const updateExpense = async (expenseId: string, expenseData: Partial<Expense>) => {
     if (!user) return;
@@ -446,6 +462,7 @@ export const useFinanceData = () => {
     addExpense,
     createBudget,
     updateBudget,
+    deleteBudget,
     updateExpense,
     deleteExpense, // <-- export deleteExpense
     accountTransactions,

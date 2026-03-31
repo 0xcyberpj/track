@@ -54,7 +54,7 @@ const getGreeting = () => {
 export const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { accounts, expenses, categories, budgets, loading, createBudget, updateBudget, addExpense, updateExpense, deleteExpense } = useFinanceData();
+  const { accounts, expenses, categories, budgets, loading, createBudget, updateBudget, deleteBudget, addExpense, updateExpense, deleteExpense } = useFinanceData();
   const [balanceVisible, setBalanceVisible] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -659,9 +659,14 @@ export const Dashboard = () => {
                           <div className="font-medium text-foreground text-[15px] truncate">
                             {budget.category?.name || budget.name}
                           </div>
-                          <button className="text-xs text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-md hover:bg-muted/50 transition-colors flex-shrink-0 ml-2" onClick={() => openEditBudget(budget)}>
-                            Edit
-                          </button>
+                          <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                            <button className="text-xs text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded-md hover:bg-muted/50 transition-colors" onClick={() => openEditBudget(budget)}>
+                              Edit
+                            </button>
+                            <button className="text-xs text-muted-foreground hover:text-red-500 px-1.5 py-0.5 rounded-md hover:bg-red-500/10 transition-colors" onClick={() => { if (confirm('Delete this budget?')) deleteBudget(budget.id); }}>
+                              Delete
+                            </button>
+                          </div>
                         </div>
                         {/* Period info */}
                         <div className="text-xs text-muted-foreground flex items-center gap-1.5 mb-2">
