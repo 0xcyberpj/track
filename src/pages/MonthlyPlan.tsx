@@ -15,7 +15,7 @@ const MonthlyPlan = () => {
   );
 
   const {
-    plan, loading, saving, createPlan, savePlan, deletePlan,
+    plan, loading, saving, createPlan, savePlan, savePlanDebounced, deletePlan,
     addAllocation, toggleAllocation, removeAllocation,
     addBalanceItem, removeBalanceItem,
     addTracker, removeTracker, addTrackerEntry, removeTrackerEntry,
@@ -82,7 +82,7 @@ const MonthlyPlan = () => {
                 <input
                   type="text"
                   value={plan.income_label}
-                  onChange={e => savePlan({ income_label: e.target.value })}
+                  onChange={e => savePlanDebounced({ income_label: e.target.value })}
                   className="flex-1 min-w-0 bg-transparent text-sm font-medium text-foreground border-b border-border/50 focus:border-primary/50 outline-none py-1 transition-colors"
                   placeholder="Income source"
                 />
@@ -91,7 +91,7 @@ const MonthlyPlan = () => {
                   <input
                     type="number"
                     value={plan.income || ''}
-                    onChange={e => savePlan({ income: Number(e.target.value) || 0 })}
+                    onChange={e => savePlanDebounced({ income: Number(e.target.value) || 0 })}
                     className="w-28 bg-transparent text-sm font-bold text-green-500 text-right border-b border-border/50 focus:border-primary/50 outline-none py-1 transition-colors"
                     placeholder="0"
                   />
@@ -187,7 +187,7 @@ const MonthlyPlan = () => {
             <Section icon={StickyNote} title="Notes" color="text-yellow-500">
               <textarea
                 value={plan.notes}
-                onChange={e => savePlan({ notes: e.target.value })}
+                onChange={e => savePlanDebounced({ notes: e.target.value })}
                 rows={3}
                 className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground/50 border border-border/30 rounded-xl p-3 focus:outline-none focus:ring-1 focus:ring-primary/30 resize-none transition-all"
                 placeholder="Any notes for this month..."
